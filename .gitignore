@@ -1,0 +1,8 @@
+
+__pysache__/
+
+*.nc
+
+atlite_cutouts/
+
+Y/
