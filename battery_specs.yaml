@@ -1,0 +1,7 @@
+capacity_mwh: 10
+initial_soc_mwh: 5
+standing_loss: 0.001
+charge_power_mw: 5
+discharge_power_mw: 5
+charge_efficiency: 0.9
+discharge_efficiency: 0.9
