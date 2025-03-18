@@ -1,7 +1,9 @@
-capacity_mwh: 10
-initial_soc_mwh: 5
+#capacity = charge_power * 4.2 (average duration of R-BESS)
+capacity_mwh: 3.3156
+initial_soc_mwh: 0
 standing_loss: 0.001
-charge_power_mw: 5
-discharge_power_mw: 5
-charge_efficiency: 0.9
-discharge_efficiency: 0.9
+# power = households Monnickendam / total households * amount of household batteries = 3276/8300000 *2.1GW
+charge_power_mw: 0.8289
+discharge_power_mw: 0.8289
+charge_efficiency: 0.91
+discharge_efficiency: 0.91

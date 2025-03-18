@@ -16,11 +16,12 @@ def load_load_levels(filepath, year):
     # Ensure exactly 35,040 intervals (365 days × 96 per day)
     expected_intervals = 35_040
     if len(df) != expected_intervals:
-        raise ValueError(f"⚠ Load data for {year} contains {len(df)} intervals, expected {expected_intervals}. Check data!")
+        raise ValueError(f"Load data for {year} contains {len(df)} intervals, expected {expected_intervals}. Check data!")
 
     return df["belasting_kw"].values  # Return demand as a NumPy array
 
-def load_day_ahead_prices(filepath, year):
+
+def load_day_ahead_prices(filepath, year): 
     """Loads hourly day-ahead prices from CSV and expands them to 15-minute intervals."""
     # Read CSV
     df = pd.read_csv(filepath)
@@ -54,8 +55,6 @@ def load_day_ahead_prices(filepath, year):
 
     return expanded_prices
 
-
-
 def solve_network(year):
     """Loads 15-minute resolution load levels, generates synthetic day-ahead prices, and solves LOPF."""
     # File paths
@@ -66,15 +65,25 @@ def solve_network(year):
     prices = load_day_ahead_prices(filepath, year)  # Now using generated prices
 
     # Create network
-    network = create_network("battery_specs.yaml")
+    network = create_network("battery_specs.yaml", prices, year)
+    if network is None:
+        raise ValueError("Error: create_network() returned None. Check network.py for issues.")
+
 
     # Set time snapshots for 15-minute resolution
-    timestamps = pd.date_range(f"{year}-01-01 00:00", periods=35_040, freq="15T")
+    network.snapshots = pd.date_range(f"{year}-01-01", periods=len(prices), freq="h")
+    timestamps = pd.date_range(f"{year}-01-01 00:00", periods=35_040, freq="15min")
     network.set_snapshots(timestamps)
 
     # Apply demand & prices (using `.loc` for time-dependent data)
     network.loads_t.p.loc[:, "household_load"] = demand
     network.generators_t.p.loc[:, "DAM_Generator"] = prices
+
+    # Apply marginal costs dynamically to the snapshots
+    network.links_t.marginal_cost = pd.DataFrame({
+        "Household_to_BESS": -prices,  # Charging cost
+        "BESS_to_Household": prices  # Discharging revenue
+    }, index=network.snapshots)
 
     # Solve LOPF
     print("Running LOPF solver... (this may take a few minutes)")
@@ -86,4 +95,4 @@ def solve_network(year):
 if __name__ == "__main__":
     year = 2024  # Change to any year from 2024–2031
     solved_network = solve_network(year)
-    print(f"Network solved successfully for {year} with 15-minute resolution and synthetic day-ahead prices!")
+    print(f"Network solved successfully for {year} with 15-minute resolution and day-ahead prices!")

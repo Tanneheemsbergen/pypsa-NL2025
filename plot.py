@@ -1,6 +1,7 @@
 import pandas as pd
 import matplotlib.pyplot as plt
 from solve import solve_network
+import networkx as nx
 
 def plot_simulation_results(network):
     """Plots household load, battery storage, and grid imports."""
@@ -19,7 +20,7 @@ def plot_simulation_results(network):
     plt.title("Household Load, BESS, and Grid Interaction")
     plt.grid()
     plt.show()
-
+   
 def plot_ss_monnickendam(file_path):
     """Plots the load profile for SS Monnickendam and highlights capacity violations."""
     df = pd.read_csv(file_path, sep=';', decimal=',', parse_dates=['DATUM_TIJD'])
@@ -44,11 +45,34 @@ def plot_ss_monnickendam(file_path):
     plt.grid(True)
     plt.show()
 
+def plot_bess_performance(network):
+    """Plots the battery charge/discharge behavior and state of charge."""
+    plt.figure(figsize=(12,5))
+
+    # Plot battery charging (negative values, meaning power is going into the battery)
+    plt.plot(network.snapshots, -network.links_t.p0["Household_to_BESS"], 
+             label="Battery Charging (MW)", linestyle="dashed", color="blue")
+
+    # Plot battery discharging (positive values, meaning power is leaving the battery)
+    plt.plot(network.snapshots, network.links_t.p0["BESS_to_Household"], 
+             label="Battery Discharging (MW)", linestyle="dashdot", color="red")
+
+    # Plot battery state of charge (SOC)
+    plt.plot(network.snapshots, network.stores_t.e["BESS"], 
+             label="Battery State of Charge (MWh)", linestyle="solid", color="black")
+
+    plt.legend()
+    plt.xlabel("Time")
+    plt.ylabel("Power (MW) / Energy (MWh)")
+    plt.title("Battery Storage Operation - Arbitrage Performance")
+    plt.grid()
+    plt.show()
+
 if __name__ == "__main__":
     # Run network simulation and plot results
     year = 2024
     solved_network = solve_network(year)
     plot_simulation_results(solved_network)
-
+    plot_bess_performance(solved_network)
     # Plot SS Monnickendam Load Profile
     plot_ss_monnickendam("data/SS_Monnickendam.csv")
