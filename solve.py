@@ -69,7 +69,7 @@ def solve_network(year):
     network.generators_t.marginal_cost.loc[:, "DAM_Generator"] = prices
     print("First 10 rows of generators_t.p:\n", network.generators_t.p.head(40))
     # Solve LOPF
-    network.optimize.solve_model(solver_name="glpk")
+    network.optimize(network.snapshots, solver_name="glpk")
     print("LOPF solved successfully!")
 
     return network

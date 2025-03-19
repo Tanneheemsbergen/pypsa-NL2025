@@ -43,7 +43,12 @@ def create_network(battery_specs_file, prices, year):
     network.add("Generator", "DAM_Generator",
                 bus="Electricity_Grid",
                 p_nom=100,
-                marginal_cost=50)
+                marginal_cost=prices)
+    
+    network.add("Generator", "negative_DAM_Generator",
+                bus="Electricity_Grid",
+                p_nom=100,
+                marginal_cost=-prices)
 
     # Add essential links
     network.add("Link", "Grid_to_SS", bus0="Electricity_Grid", bus1="SS", p_nom=50, carrier="electricity")
@@ -66,8 +71,8 @@ def create_network(battery_specs_file, prices, year):
     # Apply marginal costs
     # network.snapshots = pd.date_range(f"{year}-01-01", periods=len(prices), freq="h")
     network.snapshots = pd.date_range(f"{year}-01-01", periods=672, freq="h")
-    network.links_t.marginal_cost = pd.DataFrame({
-        "Household_to_BESS": -prices,
-        "BESS_to_Household": prices
+    network.generators_t.marginal_cost = pd.DataFrame({
+        "DAM_Generator": prices,
+        "negative_DAM_Generator": -prices
     }, index=network.snapshots)
     return network  # Ensure we return the network
