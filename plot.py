@@ -1,7 +1,8 @@
 import pandas as pd
 import matplotlib.pyplot as plt
+import pypsa
+from pypsa import statistics
 from solve import solve_network
-import networkx as nx
 
 def plot_simulation_results(network):
     """Plots household load, battery storage, and grid imports."""
@@ -9,6 +10,8 @@ def plot_simulation_results(network):
 
     plt.figure(figsize=(10,5))
     plt.plot(hours, network.loads_t.p["household_load"], label="Household Load (MW)", linestyle="dotted")
+    print("printing household load")
+    print(network.loads_t.p["household_load"].max())
     plt.plot(hours, network.generators_t.p["DAM_Generator"], label="Grid Import (MW)")
     plt.plot(hours, network.links_t.p0["Household_to_BESS"], label="Battery Charging (MW)", linestyle="dashed")
     plt.plot(hours, network.links_t.p0["BESS_to_Household"], label="Battery Discharging (MW)", linestyle="dashdot")
@@ -68,11 +71,28 @@ def plot_bess_performance(network):
     plt.grid()
     plt.show()
 
+    # Print battery behavior
+    print("Battery Behavior:")
+    capacity_limit= 11.2 * 0.9 * 1000  # Convert MVA to kW
+    for t in network.snapshots:
+        load = network.loads_t.p.at[t, "household_load"]
+        print(load)
+        discharge = network.links_t.p0.at[t, "BESS_to_Household"]
+        total_load = load + discharge
+        if total_load > capacity_limit:
+            print(f"At {t}, total load ({total_load} kW) exceeds capacity limit ({capacity_limit} kW).")
+
 if __name__ == "__main__":
     # Run network simulation and plot results
     year = 2024
     solved_network = solve_network(year)
+    # print load on SS
+    ss_load = solved_network.loads_t.p["household_load"]
+    print("First few SS Load values (should increase due to battery arbitrage):")
+    for t, value in ss_load.items():
+        if value > 0:
+            print(f"At {t}, SS load: {value} kW")
     plot_simulation_results(solved_network)
-    plot_bess_performance(solved_network)
+    #plot_bess_performance(solved_network)
     # Plot SS Monnickendam Load Profile
-    plot_ss_monnickendam("data/SS_Monnickendam.csv")
+    #plot_ss_monnickendam("data/SS_Monnickendam.csv")

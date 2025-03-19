@@ -2,25 +2,19 @@ import pandas as pd
 import numpy as np
 from network import create_network
 
+# %%
 def load_load_levels(filepath, year):
     """Loads 15-minute resolution load levels from SS_Monnickendam.csv (in kWh) and converts to kW."""
     df = pd.read_csv(filepath, sep=';', decimal=',', parse_dates=['DATUM_TIJD'])
     df.columns = df.columns.str.lower()
-
     # Filter for selected year and sort
     df = df[df["jaar"] == year].sort_values(by="datum_tijd")
 
     # Convert kWh to kW (divide by 0.25h per 15-min interval)
     df["belasting_kw"] = df["belasting"] / 0.25  
-
-    # Ensure exactly 35,040 intervals (365 days × 96 per day)
-    expected_intervals = 35_040
-    if len(df) != expected_intervals:
-        raise ValueError(f"Load data for {year} contains {len(df)} intervals, expected {expected_intervals}. Check data!")
-
-    return df["belasting_kw"].values  # Return demand as a NumPy array
-
-
+    # return df["belasting_kw"].values
+    return df["belasting_kw"].values[:672]
+#%%
 def load_day_ahead_prices(filepath, year): 
     """Loads hourly day-ahead prices from CSV and expands them to 15-minute intervals."""
     # Read CSV
@@ -48,12 +42,8 @@ def load_day_ahead_prices(filepath, year):
 
     # Repeat each hourly price 4 times to create 15-minute intervals
     expanded_prices = np.repeat(hourly_prices, 4)
-
-    # Ensure exactly 35,040 values for a full year at 15-min resolution
-    if len(expanded_prices) != 35_040:
-        raise ValueError(f"Expected 35,040 prices, but got {len(expanded_prices)}")
-
-    return expanded_prices
+    #return expanded_prices
+    return expanded_prices[:672]
 
 def solve_network(year):
     """Loads 15-minute resolution load levels, generates synthetic day-ahead prices, and solves LOPF."""
@@ -62,32 +52,24 @@ def solve_network(year):
     filepath = "data/day_ahead.csv"
     # Load data
     demand = load_load_levels(load_file, year)
-    prices = load_day_ahead_prices(filepath, year)  # Now using generated prices
+    prices = load_day_ahead_prices(filepath, year)
 
     # Create network
     network = create_network("battery_specs.yaml", prices, year)
-    if network is None:
-        raise ValueError("Error: create_network() returned None. Check network.py for issues.")
-
+    print("Network components:", network.links)
 
     # Set time snapshots for 15-minute resolution
-    network.snapshots = pd.date_range(f"{year}-01-01", periods=len(prices), freq="h")
-    timestamps = pd.date_range(f"{year}-01-01 00:00", periods=35_040, freq="15min")
+    #timestamps = pd.date_range(f"{year}-01-01 00:00", periods=35_040, freq="15min")
+    timestamps = pd.date_range(f"{year}-01-01 00:00", periods=672, freq="15min")
     network.set_snapshots(timestamps)
 
-    # Apply demand & prices (using `.loc` for time-dependent data)
+    # Apply demand & prices. `.loc` for time-dependent data)
     network.loads_t.p.loc[:, "household_load"] = demand
+    print("First 10 rows of loads_t.p:\n", network.loads_t.p.head(10))
     network.generators_t.p.loc[:, "DAM_Generator"] = prices
-
-    # Apply marginal costs dynamically to the snapshots
-    network.links_t.marginal_cost = pd.DataFrame({
-        "Household_to_BESS": -prices,  # Charging cost
-        "BESS_to_Household": prices  # Discharging revenue
-    }, index=network.snapshots)
-
+    print("First 10 rows of generators_t.p:\n", network.generators_t.p.head(40))
     # Solve LOPF
-    print("Running LOPF solver... (this may take a few minutes)")
-    network.optimize(network.snapshots, solver_name="glpk")  # Force GLPK for speed
+    network.optimize(network.snapshots, solver_name="glpk")
     print("LOPF solved successfully!")
 
     return network
