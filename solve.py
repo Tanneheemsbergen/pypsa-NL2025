@@ -64,17 +64,18 @@ def solve_network(year):
     network.set_snapshots(timestamps)
 
     # Apply demand & prices. `.loc` for time-dependent data)
-    network.loads_t.p.loc[:, "household_load"] = demand
+    network.loads_t.p_set.loc[:, "household_load"] = demand
     print("First 10 rows of loads_t.p:\n", network.loads_t.p.head(10))
-    network.generators_t.p.loc[:, "DAM_Generator"] = prices
+    network.generators_t.marginal_cost.loc[:, "DAM_Generator"] = prices
     print("First 10 rows of generators_t.p:\n", network.generators_t.p.head(40))
     # Solve LOPF
-    network.optimize(network.snapshots, solver_name="glpk")
+    network.optimize.solve_model(solver_name="glpk")
     print("LOPF solved successfully!")
 
     return network
 
 if __name__ == "__main__":
     year = 2024  # Change to any year from 2024–2031
+
     solved_network = solve_network(year)
     print(f"Network solved successfully for {year} with 15-minute resolution and day-ahead prices!")

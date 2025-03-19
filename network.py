@@ -38,14 +38,12 @@ def create_network(battery_specs_file, prices, year):
                 carrier="electricity",
                 e_nom=battery_specs["capacity_mwh"],
                 e_initial=battery_specs["initial_soc_mwh"],
-                standing_loss=battery_specs["standing_loss"],
-                capital_cost=200000)
+                standing_loss=battery_specs["standing_loss"])
      # Add generator
     network.add("Generator", "DAM_Generator",
                 bus="Electricity_Grid",
                 p_nom=100,
-                marginal_cost=50,
-                capital_cost=500000)
+                marginal_cost=50)
 
     # Add essential links
     network.add("Link", "Grid_to_SS", bus0="Electricity_Grid", bus1="SS", p_nom=50, carrier="electricity")
