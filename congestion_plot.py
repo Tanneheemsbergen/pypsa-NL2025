@@ -12,44 +12,79 @@ import os
 file_path = "data/SS_Monnickendam.csv"
 
 # %%
-"""Plots the load profile for SS Monnickendam and highlights capacity violations."""
 # Load data
 df = pd.read_csv(file_path, sep=';', decimal=',', parse_dates=['DATUM_TIJD'])
 df.columns = df.columns.str.lower()
-df = df[df["jaar"] == 2032].sort_values(by="datum_tijd")
 
-# Calculate statistics
+# Sort by time
+df = df.sort_values(by="datum_tijd")
+df["datum_tijd"] = df["datum_tijd"] + pd.DateOffset(years=1)
+
+# Calculate mean load
 mean_load = df["belasting"].mean()
+
+# Plot
+plt.figure(figsize=(12, 5))
+
+# Plot load levels
+plt.plot(df["datum_tijd"], df["belasting"], color='blue', linewidth=0.7, label="Load Level")
+
+# Plot mean load
+plt.axhline(y=mean_load, color='green', linestyle='--', linewidth=1.5, label=f"Mean Load = {mean_load:.2f} kW")
+
+# Formatting
+plt.xlabel("Date")
+plt.ylabel("Load (kW)")
+plt.title("Load Profile with Mean Load")
+plt.legend(loc="lower left")  # Legend at bottom-left
+plt.xticks(rotation=45)  # Rotate dates for readability
+plt.grid(True)
+
+# Show plot
+plt.show()
+
+# %%
+# Congestion plot
+# Load data
+df = pd.read_csv(file_path, sep=';', decimal=',', parse_dates=['DATUM_TIJD'])
+df.columns = df.columns.str.lower()
+df = df[df["jaar"] == 2030].sort_values(by="datum_tijd")
+
+# Shift dates forward by one year
+df["datum_tijd"] = df["datum_tijd"] + pd.DateOffset(years=7)
+
+# Capacity limit calculation
 capacity_limit = 11.2 * 0.85 * 1000  # Convert MVA to kW
 
 # Count the number of times the load exceeds the capacity
 exceed_count = (df["belasting"] > capacity_limit).sum()
-# Convert exceed_count to hours
-exceed_hours = exceed_count * 15 / 60
+exceed_hours = exceed_count * 15 / 60  # Convert exceed count to hours
 print(f"Number of times load exceeds capacity: {exceed_count} (equivalent to {exceed_hours:.2f} hours)")
 
 # Plot
 plt.figure(figsize=(12, 5))
 
 # Plot normal load
-plt.plot(df["datum_tijd"], df["belasting"], label="Load (BELASTING)", color='blue', linewidth=0.7)
+plt.plot(df["datum_tijd"], df["belasting"], label="Load Level", color='blue', linewidth=0.7)
 
 # Highlight areas where load exceeds capacity
 above_limit = df["belasting"] > capacity_limit
 plt.plot(df["datum_tijd"][above_limit], df["belasting"][above_limit], color='red', linewidth=0.7, label="Over Capacity")
 
+# Add capacity limit line
 plt.axhline(y=capacity_limit, color='orange', linestyle='--', linewidth=1.5, label=f"Capacity Limit = {capacity_limit:.0f} kW")
-plt.axhline(y=mean_load, color='green', linestyle='--', linewidth=1.5, label=f"Mean Load = {mean_load:.2f} kW")
 
+# Fix x-axis formatting
+plt.xticks(rotation=45)
 plt.xlabel("Date")
 plt.ylabel("Load (kW)")
-plt.title("Load Profile for SS Monnickendam (2024)")
-plt.legend()
+plt.title("Load Profile for SS Monnickendam (2030)")
+
+# Place legend in the bottom-left corner
+plt.legend(loc="lower left")
+
 plt.grid(True)
 plt.show()
-
-
-
 
 # %%
 # Ensure plot directory exists
@@ -89,5 +124,60 @@ plt.savefig(plot_path, dpi=300, bbox_inches='tight')
 plt.show()
 
 print(f"Plot saved at: {plot_path}")
+
+# %%
+# congestion times to csv
+# Load data
+
+# Load data
+df = pd.read_csv(file_path, sep=';', decimal=',', parse_dates=['DATUM_TIJD'])
+df.columns = df.columns.str.lower()
+df = df[(df["jaar"] >= 2024) & (df["jaar"] <= 2032)].copy()
+
+# Define capacity limit
+capacity_limit = 11.2 * 0.85 * 1000  # Convert MVA to kW
+
+# Correct the year in 'datum_tijd' using the 'jaar' column
+df["datum_tijd"] = df.apply(lambda row: row["datum_tijd"].replace(year=row["jaar"]), axis=1)
+
+# Sort again by corrected datetime
+df = df.sort_values(by="datum_tijd")
+
+# Filter rows where congestion occurs
+df_congestion = df[df["belasting"] > capacity_limit].copy()
+
+# Print timestamps of congestion
+print("\nExact timestamps of congestion occurrences:")
+print(df_congestion[["jaar", "datum_tijd", "belasting"]].to_string(index=False))
+
+# Define output file path
+output_csv_path = os.path.join("data", "congestion_timestamps.csv")
+
+# Save to CSV
+df_congestion[["jaar", "datum_tijd", "belasting"]].to_csv(output_csv_path, index=False)
+print(f"Congestion timestamps saved to: {output_csv_path}")
+
+# %%
+
+# %%
+#congestion frequency
+df_2032 = df_congestion[df_congestion["jaar"] == 2030]
+# Extract hour of congestion occurrences
+df_2032["hour"] = df_2032["datum_tijd"].dt.hour
+
+# Count congestion occurrences per hour
+hourly_congestion = df_2032["hour"].value_counts().sort_index()
+plt.figure(figsize=(12, 5))
+sns.barplot(x=hourly_congestion.index, y=hourly_congestion.values, color="red", alpha=0.8)
+
+# Labels
+plt.xlabel("Hour of the Day")
+plt.ylabel("Congestion Occurrences")
+plt.title("Congestion Frequency Per Hour in 2030")
+
+# Formatting
+plt.xticks(range(0, 24), labels=[f"{h}:00" for h in range(0, 24)])
+plt.grid(axis="y", linestyle="--", alpha=0.7)
+plt.show()
 
 # %%
