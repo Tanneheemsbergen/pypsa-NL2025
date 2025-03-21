@@ -48,11 +48,11 @@ def load_day_ahead_prices(filepath, year):
 def solve_network(year):
     """Loads 15-minute resolution load levels, generates synthetic day-ahead prices, and solves LOPF."""
     # File paths
-    load_file = "data/SS_Monnickendam.csv"
-    filepath = "data/day_ahead.csv"
+    load_path = "data/SS_Monnickendam.csv"
+    day_ahead_prices_path = "data/day_ahead.csv"
     # Load data
-    demand = load_load_levels(load_file, year)
-    prices = load_day_ahead_prices(filepath, year)
+    demand = load_load_levels(load_path, year)
+    prices = load_day_ahead_prices(day_ahead_prices_path, year)
 
     # Create network
     network = create_network("battery_specs.yaml", prices, year)
@@ -66,11 +66,13 @@ def solve_network(year):
     # Apply demand & prices. `.loc` for time-dependent data)
     network.loads_t.p_set.loc[:, "household_load"] = demand
     print("First 10 rows of loads_t.p:\n", network.loads_t.p.head(10))
-    network.generators_t.marginal_cost.loc[:, "DAM_Generator"] = prices
+    network.generators_t.marginal_cost = pd.DataFrame({
+        "DAM_Generator": prices,
+        # "negative_DAM_Generator": -prices
+    }, index=network.snapshots)
     print("First 10 rows of generators_t.p:\n", network.generators_t.p.head(40))
     # Solve LOPF
-    network.optimize(network.snapshots, solver_name="glpk")
-    print("LOPF solved successfully!")
+    network.optimize(network.snapshots, solver_name="highs")
 
     return network
 
@@ -78,4 +80,3 @@ if __name__ == "__main__":
     year = 2024  # Change to any year from 2024–2031
 
     solved_network = solve_network(year)
-    print(f"Network solved successfully for {year} with 15-minute resolution and day-ahead prices!")

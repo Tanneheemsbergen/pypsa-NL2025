@@ -34,27 +34,28 @@ def create_network(battery_specs_file, prices, year):
 
     # Add BESS as a Store
     network.add("Store", "BESS",
-                bus="Household",
+                bus="Battery",
                 carrier="electricity",
                 e_nom=battery_specs["capacity_mwh"],
                 e_initial=battery_specs["initial_soc_mwh"],
                 standing_loss=battery_specs["standing_loss"])
+
      # Add generator
     network.add("Generator", "DAM_Generator",
                 bus="Electricity_Grid",
-                p_nom=100,
-                marginal_cost=prices)
+                p_nom=50_000,
+                )
     
     network.add("Generator", "negative_DAM_Generator",
                 bus="Electricity_Grid",
-                p_nom=100,
-                marginal_cost=-prices)
+                p_nom=50_000,
+                )
 
     # Add essential links
-    network.add("Link", "Grid_to_SS", bus0="Electricity_Grid", bus1="SS", p_nom=50, carrier="electricity")
-    network.add("Link", "SS_to_Grid", bus0="SS", bus1="Electricity_Grid", p_nom=50, carrier="electricity")
-    network.add("Link", "SS_to_Household", bus0="SS", bus1="Household", p_nom=50, marginal_cost=10, carrier="electricity")
-    network.add("Link", "Household_to_SS", bus0="Household", bus1="SS", p_nom=50, carrier="electricity")
+    network.add("Link", "Grid_to_SS", bus0="Electricity_Grid", bus1="SS", p_nom=50_000, carrier="electricity")
+    network.add("Link", "SS_to_Grid", bus0="SS", bus1="Electricity_Grid", p_nom=50_000, carrier="electricity")
+    network.add("Link", "SS_to_Household", bus0="SS", bus1="Household", p_nom=50_000, carrier="electricity")
+    network.add("Link", "Household_to_SS", bus0="Household", bus1="SS", p_nom=50_000, carrier="electricity")
    
     network.add("Link", "Household_to_BESS",
                 bus0="Household", bus1="Battery", 
@@ -68,11 +69,6 @@ def create_network(battery_specs_file, prices, year):
                 efficiency=battery_specs["discharge_efficiency"],
                 carrier="electricity")
 
-    # Apply marginal costs
-    # network.snapshots = pd.date_range(f"{year}-01-01", periods=len(prices), freq="h")
     network.snapshots = pd.date_range(f"{year}-01-01", periods=672, freq="h")
-    network.generators_t.marginal_cost = pd.DataFrame({
-        "DAM_Generator": prices,
-        "negative_DAM_Generator": -prices
-    }, index=network.snapshots)
+
     return network  # Ensure we return the network
