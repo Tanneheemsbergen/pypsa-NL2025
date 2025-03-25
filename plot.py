@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 import pypsa
 from pypsa import statistics
 from solve import solve_network
+from matplotlib.animation import FuncAnimation
 
 def plot_simulation_results(network):
     """Plots household load, battery storage, and grid imports."""
@@ -10,8 +11,6 @@ def plot_simulation_results(network):
 
     plt.figure(figsize=(10,5))
     plt.plot(hours, network.loads_t.p["household_load"], label="Household Load (MW)", linestyle="dotted")
-    print("printing household load")
-    print(network.loads_t.p["household_load"].max())
     plt.plot(hours, network.generators_t.p["DAM_Generator"], label="Grid Import (MW)")
     plt.plot(hours, network.links_t.p0["Household_to_BESS"], label="Battery Charging (MW)", linestyle="dashed")
     plt.plot(hours, network.links_t.p0["BESS_to_Household"], label="Battery Discharging (MW)", linestyle="dashdot")
@@ -92,7 +91,8 @@ if __name__ == "__main__":
     for t, value in ss_load.items():
         if value > 0:
             print(f"At {t}, SS load: {value} kW")
-    plot_simulation_results(solved_network)
-    #plot_bess_performance(solved_network)
+    #plot_simulation_results(solved_network)
+    plot_bess_performance(solved_network)
     # Plot SS Monnickendam Load Profile
     #plot_ss_monnickendam("data/SS_Monnickendam.csv")
+

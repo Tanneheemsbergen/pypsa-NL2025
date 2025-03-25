@@ -10,9 +10,9 @@ def load_load_levels(filepath, year):
     # Filter for selected year and sort
     df = df[df["jaar"] == year].sort_values(by="datum_tijd")
 
-    # Convert kWh to kW (divide by 0.25h per 15-min interval)
-    df["belasting_kw"] = df["belasting"] / 0.25  
-    # return df["belasting_kw"].values
+    # Convert kWh to kW (divide by 0.25h per 15-min interval) -> deleted /0.25 and onlu divided by 1000 to get MWh
+    df["belasting_kw"] = (df["belasting"] /0.25) / 1000  
+    #return df["belasting_kw"].values
     return df["belasting_kw"].values[:672]
 #%%
 def load_day_ahead_prices(filepath, year): 
@@ -30,13 +30,6 @@ def load_day_ahead_prices(filepath, year):
     # Filter using the 'jaar' column instead of .dt.year
     df = df[df["jaar"] == year]
 
-    # Debugging: Check how many rows remain after filtering
-    print(f"Found {len(df)} rows for year {year} in day-ahead prices.")
-
-    # Ensure data exists after filtering
-    if df.empty:
-        raise ValueError(f"No data found for {year}. Check CSV format.")
-
     # Extract hourly price values
     hourly_prices = df["price"].values
 
@@ -45,14 +38,48 @@ def load_day_ahead_prices(filepath, year):
     #return expanded_prices
     return expanded_prices[:672]
 
+def load_imbalance_prices(filepath):
+    df = pd.read_csv(filepath, sep=";")
+    
+    required_cols = ["Regulation State", "Price Dispatch Up", "Price Dispatch Down", 
+                     "Price Shortage", "Price Surplus"]
+    for col in required_cols:
+        if col not in df.columns:
+            raise ValueError(f"Vereiste kolom '{col}' ontbreekt in de CSV.")
+    
+    discharge_prices = []
+    charge_prices = []
+    
+    for _, row in df.iterrows():
+        state = row["Regulation State"]
+        if state == 1:  # UP: short, so discharging is favorable
+            discharge = row["Price Dispatch Up"]
+            charge = 0
+        elif state == -1:  # DOWN: oversupply, so charging is favorable
+            discharge = 0
+            charge = row["Price Dispatch Down"]
+        elif state == 2:  # UP_AND_DOWN: both directions active
+            discharge = np.nanmax([row["Price Dispatch Up"], row["Price Shortage"]])
+            charge = np.nanmin([row["Price Dispatch Down"], row["Price Surplus"]])
+        else:
+            discharge = 0
+            charge = 0
+        
+        discharge_prices.append(discharge)
+        charge_prices.append(charge)
+    
+    return np.array(discharge_prices[:672]), np.array(charge_prices[:672])
+
 def solve_network(year):
     """Loads 15-minute resolution load levels, generates synthetic day-ahead prices, and solves LOPF."""
     # File paths
     load_path = "data/SS_Monnickendam.csv"
     day_ahead_prices_path = "data/day_ahead.csv"
+    imbalance_prices_path = "data/settlement_prices.csv"
     # Load data
     demand = load_load_levels(load_path, year)
     prices = load_day_ahead_prices(day_ahead_prices_path, year)
+    discharge_prices, charge_prices  = load_imbalance_prices(imbalance_prices_path)
 
     # Create network
     network = create_network("battery_specs.yaml", prices, year)
@@ -63,12 +90,13 @@ def solve_network(year):
     timestamps = pd.date_range(f"{year}-01-01 00:00", periods=672, freq="15min")
     network.set_snapshots(timestamps)
 
-    # Apply demand & prices. `.loc` for time-dependent data)
+    # Apply demand & prices. 
     network.loads_t.p_set.loc[:, "household_load"] = demand
     print("First 10 rows of loads_t.p:\n", network.loads_t.p.head(10))
     network.generators_t.marginal_cost = pd.DataFrame({
         "DAM_Generator": prices,
-        # "negative_DAM_Generator": -prices
+        "negative_DAM_Generator": -prices,
+        "negative_IMBALANCE_Generator": -discharge_prices
     }, index=network.snapshots)
     print("First 10 rows of generators_t.p:\n", network.generators_t.p.head(40))
     # Solve LOPF
@@ -78,5 +106,6 @@ def solve_network(year):
 
 if __name__ == "__main__":
     year = 2024  # Change to any year from 2024–2031
-
+    ENERGY_TAX = 0.005  # Extra energiebelasting in €/MWh
     solved_network = solve_network(year)
+    imbalance_load_prices = load_imbalance_prices("data/settlement_prices.csv")

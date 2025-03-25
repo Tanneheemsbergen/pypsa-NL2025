@@ -14,13 +14,9 @@ def create_network(battery_specs_file, prices, year):
     with open(battery_specs_file, "r") as file:
         battery_specs = yaml.safe_load(file)
 
-    # Check if prices are loaded correctly
-    if len(prices) == 0:
-        raise ValueError("Error: Prices array is empty")
-
     # Create PyPSA network
     network = pypsa.Network()
-
+    ENERGY_TAX = 0.005
     # Add Components
     network.add("Carrier", "electricity")
 
@@ -43,32 +39,42 @@ def create_network(battery_specs_file, prices, year):
      # Add generator
     network.add("Generator", "DAM_Generator",
                 bus="Electricity_Grid",
-                p_nom=50_000,
+                p_nom=20_000,
                 )
     
     network.add("Generator", "negative_DAM_Generator",
                 bus="Electricity_Grid",
-                p_nom=50_000,
+                p_nom=battery_specs["capacity_mwh"],
+                p_min_pu=-1,
+                p_max_pu=0
                 )
+    # Add negative imbalance generator to sell energy
+    network.add("Generator", "negative_IMBALANCE_Generator",
+                bus="Electricity_Grid",
+                p_nom=battery_specs["capacity_mwh"],
+                p_min_pu=-1,
+                p_max_pu=0)
 
     # Add essential links
-    network.add("Link", "Grid_to_SS", bus0="Electricity_Grid", bus1="SS", p_nom=50_000, carrier="electricity")
-    network.add("Link", "SS_to_Grid", bus0="SS", bus1="Electricity_Grid", p_nom=50_000, carrier="electricity")
-    network.add("Link", "SS_to_Household", bus0="SS", bus1="Household", p_nom=50_000, carrier="electricity")
-    network.add("Link", "Household_to_SS", bus0="Household", bus1="SS", p_nom=50_000, carrier="electricity")
+    network.add("Link", "Grid_to_SS", bus0="Electricity_Grid", bus1="SS", p_nom=20_000, carrier="electricity")
+    network.add("Link", "SS_to_Grid", bus0="SS", bus1="Electricity_Grid", p_nom=20_000, carrier="electricity")
+    network.add("Link", "SS_to_Household", bus0="SS", bus1="Household", p_nom=20_000, marginal_co=ENERGY_TAX, carrier="electricity")
+    network.add("Link", "Household_to_SS", bus0="Household", bus1="SS", p_nom=20_000, carrier="electricity")
    
     network.add("Link", "Household_to_BESS",
                 bus0="Household", bus1="Battery", 
                 p_nom=battery_specs["charge_power_mw"],
+                p_nom_extendable=False,
                 efficiency=battery_specs["charge_efficiency"],
                 carrier="electricity")
 
     network.add("Link", "BESS_to_Household",
                 bus0="Battery", bus1="Household", 
                 p_nom=battery_specs["discharge_power_mw"],
+                p_nom_extendable=False,
                 efficiency=battery_specs["discharge_efficiency"],
                 carrier="electricity")
 
-    network.snapshots = pd.date_range(f"{year}-01-01", periods=672, freq="h")
+    network.snapshots = pd.date_range(f"{year}-01-01", periods=672, freq="15 min")
 
-    return network  # Ensure we return the network
+    return network 
