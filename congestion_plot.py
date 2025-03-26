@@ -181,3 +181,34 @@ plt.grid(axis="y", linestyle="--", alpha=0.7)
 plt.show()
 
 # %%
+# Shows imbalance market prices
+# Load data (assuming file is saved as CSV)
+df = pd.read_csv("data/settlement_prices.csv", sep=";")
+
+# Convert time column and prices to proper formats
+df['Timeinterval Start Loc'] = pd.to_datetime(df['Timeinterval Start Loc'], errors='coerce')
+df['Price Shortage'] = pd.to_numeric(df['Price Shortage'], errors='coerce')
+df['Price Surplus'] = pd.to_numeric(df['Price Surplus'], errors='coerce')
+
+# Plot 1: Price Shortage
+plt.figure(figsize=(15, 5))
+plt.plot(df['Timeinterval Start Loc'], df['Price Shortage'], color='crimson', label='Price Shortage')
+plt.title("Shortage Prices Over Time (2024)")
+plt.xlabel("Date")
+plt.ylabel("Price (EUR/MWh)")
+plt.legend(loc='lower left')
+plt.grid(True)
+plt.tight_layout()
+plt.show()
+
+# Plot 2: Price Surplus
+plt.figure(figsize=(15, 5))
+plt.plot(df['Timeinterval Start Loc'], df['Price Surplus'], color='royalblue', label='Price Surplus')
+plt.title("Surplus Prices Over Time (2024)")
+plt.xlabel("Date")
+plt.ylabel("Price (EUR/MWh)")
+plt.legend(loc='lower left')
+plt.grid(True)
+plt.tight_layout()
+plt.show()
+# %%
