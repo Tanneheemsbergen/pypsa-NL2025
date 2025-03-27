@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 from network import create_network
+from utils import bus_balance
 
 # %%
 def load_load_levels(filepath, year):
@@ -51,28 +52,18 @@ def load_imbalance_prices(filepath):
     charge_prices = []
     
     for _, row in df.iterrows():
-        state = row["Regulation State"]
-        if state == 1:  # UP: short, so discharging is favorable
-            discharge = row["Price Dispatch Up"]
-            charge = 0
-        elif state == -1:  # DOWN: oversupply, so charging is favorable
-            discharge = 0
-            charge = row["Price Dispatch Down"]
-        elif state == 2:  # UP_AND_DOWN: both directions active
-            discharge = np.nanmax([row["Price Dispatch Up"], row["Price Shortage"]])
-            charge = np.nanmin([row["Price Dispatch Down"], row["Price Surplus"]])
-        else:
-            discharge = 0
-            charge = 0
+        # Gebruik Price Surplus voor discharging
+        discharge = row["Price Surplus"]
+        # Gebruik Price Shortage voor charging
+        charge = row["Price Shortage"]
         
         discharge_prices.append(discharge)
         charge_prices.append(charge)
-    
     return np.array(discharge_prices[:672]), np.array(charge_prices[:672])
 
 def solve_network(year):
     """Loads 15-minute resolution load levels, generates synthetic day-ahead prices, and solves LOPF."""
-    # File paths
+    # File paths              
     load_path = "data/SS_Monnickendam.csv"
     day_ahead_prices_path = "data/day_ahead.csv"
     imbalance_prices_path = "data/settlement_prices.csv"
@@ -82,7 +73,9 @@ def solve_network(year):
     discharge_prices, charge_prices  = load_imbalance_prices(imbalance_prices_path)
 
     # Create network
-    network = create_network("battery_specs.yaml", prices, year)
+    network = create_network("battery_specs.yaml", prices, charge_prices, discharge_prices, year)
+    print("Generators:\n", network.generators)
+    print("Generator capacities:\n", network.generators.p_nom)
     print("Network components:", network.links)
 
     # Set time snapshots for 15-minute resolution
@@ -95,17 +88,16 @@ def solve_network(year):
     print("First 10 rows of loads_t.p:\n", network.loads_t.p.head(10))
     network.generators_t.marginal_cost = pd.DataFrame({
         "DAM_Generator": prices,
-        "negative_DAM_Generator": -prices,
-        "negative_IMBALANCE_Generator": -discharge_prices
+        "IMBALANCE_Generator": charge_prices,
+        "negative_IMBALANCE_Generator": discharge_prices
     }, index=network.snapshots)
-    print("First 10 rows of generators_t.p:\n", network.generators_t.p.head(40))
     # Solve LOPF
     network.optimize(network.snapshots, solver_name="highs")
-
     return network
 
 if __name__ == "__main__":
     year = 2024  # Change to any year from 2024–2031
     ENERGY_TAX = 0.005  # Extra energiebelasting in €/MWh
     solved_network = solve_network(year)
-    imbalance_load_prices = load_imbalance_prices("data/settlement_prices.csv")
+    fig = bus_balance(solved_network, "Household", resample="15min")
+    fig.show()

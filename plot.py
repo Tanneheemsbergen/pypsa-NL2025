@@ -58,6 +58,9 @@ def plot_bess_performance(network):
     # Plot battery discharging (positive values, meaning power is leaving the battery)
     plt.plot(network.snapshots, network.links_t.p0["BESS_to_Household"], 
              label="Battery Discharging (MW)", linestyle="dashdot", color="red")
+    # Plot battery discharging (positive values, meaning power is leaving the battery)
+    plt.plot(network.snapshots, network.links_t.p0["Household_to_SS"], 
+             label="Battery Feed In (MW)", linestyle="dashdot", color="green")
 
     # Plot battery state of charge (SOC)
     plt.plot(network.snapshots, network.stores_t.e["BESS"], 

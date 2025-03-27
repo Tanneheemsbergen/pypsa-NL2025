@@ -3,7 +3,7 @@ import yaml
 import pypsa
 import pandas as pd
 
-def create_network(battery_specs_file, prices, year):
+def create_network(battery_specs_file, prices, charge_prices, discharge_prices, year):
     """Creates a PyPSA network with buses, generators, loads, BESS as Store, and links."""
 
     # Verify that the battery specs file exists
@@ -36,22 +36,33 @@ def create_network(battery_specs_file, prices, year):
                 e_initial=battery_specs["initial_soc_mwh"],
                 standing_loss=battery_specs["standing_loss"])
 
-     # Add generator
+    # Add generator
+    """"
     network.add("Generator", "DAM_Generator",
-                bus="Electricity_Grid",
-                p_nom=20_000,
-                )
-    
+               bus="Electricity_Grid",
+               p_nom=20_000,
+               p_min_pu=-1,
+               p_max_pu=1
+               )
+               """""
+    """"
     network.add("Generator", "negative_DAM_Generator",
                 bus="Electricity_Grid",
-                p_nom=battery_specs["capacity_mwh"],
+                p_nom=20000,
                 p_min_pu=-1,
                 p_max_pu=0
                 )
+    """""
+    network.add("Generator", "IMBALANCE_Generator",
+                bus="Electricity_Grid",
+                p_nom=20000,
+                p_max_pu=1,
+                p_min_pu=0)
+
     # Add negative imbalance generator to sell energy
     network.add("Generator", "negative_IMBALANCE_Generator",
                 bus="Electricity_Grid",
-                p_nom=battery_specs["capacity_mwh"],
+                p_nom=20000,
                 p_min_pu=-1,
                 p_max_pu=0)
 
