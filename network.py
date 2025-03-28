@@ -36,16 +36,17 @@ def create_network(battery_specs_file, prices, charge_prices, discharge_prices, 
                 e_initial=battery_specs["initial_soc_mwh"],
                 standing_loss=battery_specs["standing_loss"])
 
+    
     # Add generator
-    """"
     network.add("Generator", "DAM_Generator",
                bus="Electricity_Grid",
+               carrier="DAM_Generator",
                p_nom=20_000,
                p_min_pu=-1,
                p_max_pu=1
                )
-               """""
-    """"
+    
+    """""
     network.add("Generator", "negative_DAM_Generator",
                 bus="Electricity_Grid",
                 p_nom=20000,
@@ -53,8 +54,11 @@ def create_network(battery_specs_file, prices, charge_prices, discharge_prices, 
                 p_max_pu=0
                 )
     """""
+
+    # Add imbalance generator
     network.add("Generator", "IMBALANCE_Generator",
                 bus="Electricity_Grid",
+                carrier = "IMBALANCE_Generator",
                 p_nom=20000,
                 p_max_pu=1,
                 p_min_pu=0)
@@ -62,29 +66,30 @@ def create_network(battery_specs_file, prices, charge_prices, discharge_prices, 
     # Add negative imbalance generator to sell energy
     network.add("Generator", "negative_IMBALANCE_Generator",
                 bus="Electricity_Grid",
+                carrier = "negative_IMBALANCE_Generator",
                 p_nom=20000,
                 p_min_pu=-1,
                 p_max_pu=0)
 
     # Add essential links
-    network.add("Link", "Grid_to_SS", bus0="Electricity_Grid", bus1="SS", p_nom=20_000, carrier="electricity")
-    network.add("Link", "SS_to_Grid", bus0="SS", bus1="Electricity_Grid", p_nom=20_000, carrier="electricity")
-    network.add("Link", "SS_to_Household", bus0="SS", bus1="Household", p_nom=20_000, marginal_co=ENERGY_TAX, carrier="electricity")
-    network.add("Link", "Household_to_SS", bus0="Household", bus1="SS", p_nom=20_000, carrier="electricity")
+    network.add("Link", "Grid_to_SS", bus0="Electricity_Grid", bus1="SS", p_nom=20_000, carrier="Grid_to_SS")
+    network.add("Link", "SS_to_Grid", bus0="SS", bus1="Electricity_Grid", p_nom=20_000, carrier="SS_to_Grid")
+    network.add("Link", "SS_to_Household", bus0="SS", bus1="Household", p_nom=20_000, marginal_cost=ENERGY_TAX, carrier="SS_to_Household")
+    network.add("Link", "Household_to_SS", bus0="Household", bus1="SS", p_nom=20_000, carrier="Household_to_SS")
    
     network.add("Link", "Household_to_BESS",
-                bus0="Household", bus1="Battery", 
+                bus0="Household", bus1="Battery",
                 p_nom=battery_specs["charge_power_mw"],
                 p_nom_extendable=False,
                 efficiency=battery_specs["charge_efficiency"],
-                carrier="electricity")
+                carrier="charge")
 
     network.add("Link", "BESS_to_Household",
-                bus0="Battery", bus1="Household", 
+                bus0="Battery", bus1="Household",
                 p_nom=battery_specs["discharge_power_mw"],
                 p_nom_extendable=False,
                 efficiency=battery_specs["discharge_efficiency"],
-                carrier="electricity")
+                carrier="discharge")
 
     network.snapshots = pd.date_range(f"{year}-01-01", periods=672, freq="15 min")
 

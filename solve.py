@@ -12,7 +12,7 @@ def load_load_levels(filepath, year):
     df = df[df["jaar"] == year].sort_values(by="datum_tijd")
 
     # Convert kWh to kW (divide by 0.25h per 15-min interval) -> deleted /0.25 and onlu divided by 1000 to get MWh
-    df["belasting_kw"] = (df["belasting"] /0.25) / 1000  
+    df["belasting_kw"] = (df["belasting"] /0.25) / 1000 
     #return df["belasting_kw"].values
     return df["belasting_kw"].values[:672]
 #%%
@@ -39,6 +39,7 @@ def load_day_ahead_prices(filepath, year):
     #return expanded_prices
     return expanded_prices[:672]
 
+# %%
 def load_imbalance_prices(filepath):
     df = pd.read_csv(filepath, sep=";")
     
@@ -51,16 +52,46 @@ def load_imbalance_prices(filepath):
     discharge_prices = []
     charge_prices = []
     
+     # Go through each row and apply the logic
     for _, row in df.iterrows():
-        # Gebruik Price Surplus voor discharging
-        discharge = row["Price Surplus"]
-        # Gebruik Price Shortage voor charging
-        charge = row["Price Shortage"]
+        reg_state = row["Regulation State"]
+        surplus_val = row["Price Surplus"]
+        shortage_val = row["Price Shortage"]
         
-        discharge_prices.append(discharge)
-        charge_prices.append(charge)
+        # Default to NaN (meaning "no revenue" or "not applicable")
+        discharge_val = np.nan
+        charge_val = np.nan
+        
+        # Apply the user-defined rules
+        if reg_state == 0:
+            # STABLE => No number in both
+            discharge_val = np.nan
+            charge_val = np.nan
+        elif reg_state == 1:
+            # UP => Put the number in surplus (discharge), not in shortage
+            discharge_val = surplus_val
+            charge_val = np.nan
+        elif reg_state == -1:
+            # DOWN => Put the number in shortage (charge), not in surplus
+            discharge_val = np.nan
+            charge_val = shortage_val
+        elif reg_state == 2:
+            # UP_AND_DOWN => Put the number in both
+            discharge_val = surplus_val
+            charge_val = shortage_val
+        else:
+            # Any other state => default to NaN
+            discharge_val = np.nan
+            charge_val = np.nan
+        
+        discharge_prices.append(discharge_val)
+        charge_prices.append(charge_val)
+    #print("Discharge array (Price Surplus logic):")
+    #print(discharge_prices)
+    #print("\nCharge array (Price Shortage logic):")
+    #print(charge_prices)
     return np.array(discharge_prices[:672]), np.array(charge_prices[:672])
-
+#%%
 def solve_network(year):
     """Loads 15-minute resolution load levels, generates synthetic day-ahead prices, and solves LOPF."""
     # File paths              
@@ -83,7 +114,7 @@ def solve_network(year):
     timestamps = pd.date_range(f"{year}-01-01 00:00", periods=672, freq="15min")
     network.set_snapshots(timestamps)
 
-    # Apply demand & prices. 
+    # Apply demand & prices.
     network.loads_t.p_set.loc[:, "household_load"] = demand
     print("First 10 rows of loads_t.p:\n", network.loads_t.p.head(10))
     network.generators_t.marginal_cost = pd.DataFrame({
@@ -99,5 +130,16 @@ if __name__ == "__main__":
     year = 2024  # Change to any year from 2024–2031
     ENERGY_TAX = 0.005  # Extra energiebelasting in €/MWh
     solved_network = solve_network(year)
-    fig = bus_balance(solved_network, "Household", resample="15min")
+    solved_network.stores_t.p.loc["2024-01-01"].plot()
+    solved_network.stores_t.p.loc["2024-01-02"].plot()
+    solved_network.stores_t.p.loc["2024-01-03"].plot()
+    solved_network.stores_t.p.loc["2024-01-04"].plot()
+    solved_network.stores_t.p.loc["2024-01-05"].plot()
+    solved_network.stores_t.p.loc["2024-01-06"].plot()
+    solved_network.stores_t.p.loc["2024-01-07"].plot()
+    # %%
+    fig = bus_balance(solved_network, "Household", resample = "15 min")
     fig.show()
+    #%%
+    fig2 = bus_balance(solved_network, "Electricity_Grid", resample = "15 min")
+    fig2.show()
