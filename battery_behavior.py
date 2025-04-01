@@ -1,4 +1,4 @@
-from solve import solve_network
+from solve_week import  solve_network
 
 def calculate_battery_profit(network, energy_tax):
     """
@@ -43,7 +43,7 @@ def print_battery_arbitrage_summary(network, dt =0.25):
     Parameters:
       network: The solved PyPSA network object.
       dt: Time step length in hours (default 0.25 for 15-minute resolution).
-    
+    s
     It computes:
       - Total battery discharge (MWh): energy from the battery (via "BESS_to_Household").
       - Total battery feed-in (MWh): energy fed back to the grid (via "Household_to_SS").
@@ -93,7 +93,7 @@ if __name__ == "__main__":
     year = 2024  # Change to any year from 2024–2031
     ENERGY_TAX = 0.005  # Extra energiebelasting in €/MWh
     solved_network = solve_network(year)
-    battery_profit = calculate_battery_profit(solved_network, ENERGY_TAX)
-    print(f"Totale winst van de batterij: €{battery_profit:.2f}")
+    #attery_profit = calculate_battery_profit(solved_network, ENERGY_TAX)
+    #rint(f"Totale winst van de batterij: €{battery_profit:.2f}")
     print_battery_arbitrage_summary(solved_network)
-    print_feed_in_events(solved_network)
+   #print_feed_in_events(solved_network)

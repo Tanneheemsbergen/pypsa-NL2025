@@ -16,7 +16,7 @@ def create_network(battery_specs_file, prices, charge_prices, discharge_prices, 
 
     # Create PyPSA network
     network = pypsa.Network()
-    ENERGY_TAX = 0.005
+    ENERGY_TAX = 0.0123
     # Add Components
     network.add("Carrier", "electricity")
 
@@ -37,40 +37,38 @@ def create_network(battery_specs_file, prices, charge_prices, discharge_prices, 
                 standing_loss=battery_specs["standing_loss"])
 
     
-    # Add generator
+   # Add generator
     network.add("Generator", "DAM_Generator",
                bus="Electricity_Grid",
                carrier="DAM_Generator",
                p_nom=20_000,
-               p_min_pu=-1,
+               p_min_pu=0,
                p_max_pu=1
                )
     
-    """""
     network.add("Generator", "negative_DAM_Generator",
-                bus="Electricity_Grid",
-                p_nom=20000,
-                p_min_pu=-1,
-                p_max_pu=0
-                )
-    """""
+                 bus="Electricity_Grid",
+                 p_nom=battery_specs["capacity_mwh"],
+                 p_min_pu=-1,
+                 p_max_pu=0
+                 )
 
-    # Add imbalance generator
-    network.add("Generator", "IMBALANCE_Generator",
-                bus="Electricity_Grid",
-                carrier = "IMBALANCE_Generator",
-                p_nom=20000,
-                p_max_pu=1,
-                p_min_pu=0)
+    # # Add imbalance generator
+    # network.add("Generator", "IMBALANCE_Generator",
+    #             bus="Electricity_Grid",
+    #             carrier = "IMBALANCE_Generator",
+    #             p_nom=20000,
+    #             p_max_pu=1,
+    #             p_min_pu=0)
 
-    # Add negative imbalance generator to sell energy
-    network.add("Generator", "negative_IMBALANCE_Generator",
-                bus="Electricity_Grid",
-                carrier = "negative_IMBALANCE_Generator",
-                p_nom=20000,
-                p_min_pu=-1,
-                p_max_pu=0)
-
+    # # Add negative imbalance generator to sell energy
+    # network.add("Generator", "negative_IMBALANCE_Generator",
+    #             bus="Electricity_Grid",
+    #             carrier = "negative_IMBALANCE_Generator",
+    #             p_nom=20000,
+    #             p_min_pu=-1,
+    #             p_max_pu=0)
+    
     # Add essential links
     network.add("Link", "Grid_to_SS", bus0="Electricity_Grid", bus1="SS", p_nom=20_000, carrier="Grid_to_SS")
     network.add("Link", "SS_to_Grid", bus0="SS", bus1="Electricity_Grid", p_nom=20_000, carrier="SS_to_Grid")
@@ -90,7 +88,5 @@ def create_network(battery_specs_file, prices, charge_prices, discharge_prices, 
                 p_nom_extendable=False,
                 efficiency=battery_specs["discharge_efficiency"],
                 carrier="discharge")
-
-    network.snapshots = pd.date_range(f"{year}-01-01", periods=672, freq="15 min")
 
     return network 

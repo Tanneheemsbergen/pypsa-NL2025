@@ -31,7 +31,6 @@ plt.plot(df["datum_tijd"], df["belasting"], color='blue', linewidth=0.7, label="
 
 # Plot mean load
 plt.axhline(y=mean_load, color='green', linestyle='--', linewidth=1.5, label=f"Mean Load = {mean_load:.2f} kW")
-
 # Formatting
 plt.xlabel("Date")
 plt.ylabel("Load (kW)")
