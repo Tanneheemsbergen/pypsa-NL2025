@@ -16,7 +16,7 @@ def create_network(battery_specs_file, prices, charge_prices, discharge_prices, 
 
     # Create PyPSA network
     network = pypsa.Network()
-    ENERGY_TAX = 0
+    ENERGY_TAX = 0.0
     # Add Components
     network.add("Carrier", "electricity")
 
@@ -50,8 +50,8 @@ def create_network(battery_specs_file, prices, charge_prices, discharge_prices, 
     
     network.add("Generator", "negative_DAM_Generator",
                  bus="DAM",
-                 carrier="negative_DAM_Generator",
-                 p_nom=battery_specs["capacity_mwh"],
+                carrier="negative_DAM_Generator",
+                 p_nom=50000,
                  p_min_pu=-1,
                  p_max_pu=0
                  )

@@ -9,7 +9,7 @@ import seaborn as sns
 import numpy as np
 import os
 
-file_path = "data/SS_Monnickendam.csv"
+file_path = "data/raw_data/SS_Monnickendam.csv"
 
 # %%
 # Load data

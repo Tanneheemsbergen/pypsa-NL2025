@@ -1,7 +1,63 @@
+import os
+import yaml
+import pypsa
+import pandas as pd
 import pandas as pd
 import numpy as np
-from network import create_network
-from utils import bus_balance
+import networkx as nx
+import matplotlib.pyplot as plt
+
+def create_network(battery_specs_file, prices, charge_prices, discharge_prices, year):
+    """Creates a PyPSA network with buses, generators, loads, BESS as Store, and links."""
+
+    # Verify that the battery specs file exists
+    if not os.path.exists(battery_specs_file):
+        raise FileNotFoundError(f"Error: Battery specs file '{battery_specs_file}' not found!")
+
+    # Load battery specs
+    with open(battery_specs_file, "r") as file:
+        battery_specs = yaml.safe_load(file)
+
+    # Create PyPSA network
+    network = pypsa.Network()
+    ENERGY_TAX = 0.123
+    # Add Components
+    network.add("Carrier", "electricity")
+
+    # Add buses
+   
+    network.add("Bus", "Electricity_Grid", carrier="electricity")
+
+    
+   # Add generator
+    network.add("Generator", "DAM_Generator",
+               bus="Electricity_Grid",
+               carrier="DAM_Generator",
+               p_nom=50_000,
+               p_min_pu=0,
+               p_max_pu=1
+               )
+    
+    network.add("Generator", "negative_DAM_Generator",
+                 bus="Electricity_Grid",
+                carrier="negative_DAM_Generator",
+                 p_nom=50000,
+                 p_min_pu=-1,
+                 p_max_pu=0
+                 )
+
+    network.add("StorageUnit", "BESS",
+                 bus="Electricity_Grid",
+                 carrier="BESS",
+                 p_nom=battery_specs["capacity_mwh"],
+                 standing_loss=battery_specs["standing_loss"],
+                 efficiency_store=0.9,
+                 efficiency_dispatch=0.9,
+                 initial_soc=battery_specs["initial_soc_mwh"],
+                )
+    
+    return network
+
 
 # Use ISO calendar week: Monday is the first day of the week.
 def get_week_range(year, week):
@@ -95,9 +151,8 @@ def solve_network(year, week):
     start, end = get_week_range(year, week)
     snapshots = pd.date_range(start=start, end=end, freq="15min", inclusive="left") 
     network.set_snapshots(snapshots, weightings_from_timedelta=True)
+
      #  Deactivate imbalance generators (STATIC component table)
-    network.generators.at["IMBALANCE_Generator", "active"] = False
-    network.generators.at["negative_IMBALANCE_Generator", "active"] = False
     network.generators.at["DAM_Generator", "active"] = True
     network.generators.at["negative_DAM_Generator", "active"] = True
     network.generators_t.p_max_pu.loc[:, "IMBALANCE_Generator"] = charge_mask
@@ -116,14 +171,11 @@ def solve_network(year, week):
 
 if __name__ == "__main__":
     year = 2024
-    week = 24 # Change this value to select a different week 
+    week = 30
+ # Change this value to select a different week 
     ENERGY_TAX = 0.123  # €/MWh
     solved_network = solve_network(year, week)
-    solved_network.stores_t.p.plot()
+    solved_network.storage_units_t.p.plot()
+    print(solved_network.snapshots[:10])
     #Optionally, visualize network balances:
-    
-    fig = bus_balance(solved_network, "Household", resample="15 min")
-    fig.show()
-    #
-    fig2 = bus_balance(solved_network, "Electricity_Grid", resample="15 min")
-    fig2.show()
+  

@@ -91,8 +91,8 @@ def print_feed_in_events(network):
 
 if __name__ == "__main__":
     year = 2024  # Change to any year from 2024–2031
-    ENERGY_TAX = 0.005  # Extra energiebelasting in €/MWh
-    solved_network = solve_network(year)
+    ENERGY_TAX = 0.123  # Extra energiebelasting in €/MWh
+    solved_network = solve_network(year, week=18)  # Change week as needed
     #attery_profit = calculate_battery_profit(solved_network, ENERGY_TAX)
     #rint(f"Totale winst van de batterij: €{battery_profit:.2f}")
     print_battery_arbitrage_summary(solved_network)
