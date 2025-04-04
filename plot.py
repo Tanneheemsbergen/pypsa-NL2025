@@ -2,7 +2,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import pypsa
 from pypsa import statistics
-from solve import solve_network
+from solve_week import solve_network
 from matplotlib.animation import FuncAnimation
 
 def plot_simulation_results(network):
@@ -87,7 +87,7 @@ def plot_bess_performance(network):
 if __name__ == "__main__":
     # Run network simulation and plot results
     year = 2024
-    solved_network = solve_network(year)
+    solved_network = solve_network(year, week=10)  # Change week as needed
     # print load on SS
     ss_load = solved_network.loads_t.p["household_load"]
     print("First few SS Load values (should increase due to battery arbitrage):")

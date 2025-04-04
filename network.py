@@ -16,13 +16,15 @@ def create_network(battery_specs_file, prices, charge_prices, discharge_prices, 
 
     # Create PyPSA network
     network = pypsa.Network()
-    ENERGY_TAX = 0.0123
+    ENERGY_TAX = 0
     # Add Components
     network.add("Carrier", "electricity")
 
     # Add buses
     network.add("Bus", "SS", carrier="electricity")
     network.add("Bus", "Electricity_Grid", carrier="electricity")
+    network.add("Bus", "DAM", carrier="electricity")
+    network.add("Bus", "Imbalance", carrier="electricity")
     network.add("Bus", "Household", carrier="electricity")
     network.add("Bus", "Battery", carrier="electricity")
 
@@ -39,41 +41,45 @@ def create_network(battery_specs_file, prices, charge_prices, discharge_prices, 
     
    # Add generator
     network.add("Generator", "DAM_Generator",
-               bus="Electricity_Grid",
+               bus="DAM",
                carrier="DAM_Generator",
-               p_nom=20_000,
+               p_nom=50_000,
                p_min_pu=0,
                p_max_pu=1
                )
     
     network.add("Generator", "negative_DAM_Generator",
-                 bus="Electricity_Grid",
+                 bus="DAM",
+                 carrier="negative_DAM_Generator",
                  p_nom=battery_specs["capacity_mwh"],
                  p_min_pu=-1,
                  p_max_pu=0
                  )
 
     # # Add imbalance generator
-    # network.add("Generator", "IMBALANCE_Generator",
-    #             bus="Electricity_Grid",
-    #             carrier = "IMBALANCE_Generator",
-    #             p_nom=20000,
-    #             p_max_pu=1,
-    #             p_min_pu=0)
+    network.add("Generator", "IMBALANCE_Generator",
+                bus="Imbalance",
+                carrier = "IMBALANCE_Generator",
+                p_nom=50000,
+                p_min_pu=0)
 
-    # # Add negative imbalance generator to sell energy
-    # network.add("Generator", "negative_IMBALANCE_Generator",
-    #             bus="Electricity_Grid",
-    #             carrier = "negative_IMBALANCE_Generator",
-    #             p_nom=20000,
-    #             p_min_pu=-1,
-    #             p_max_pu=0)
+    # Add negative imbalance generator to sell energy
+    network.add("Generator", "negative_IMBALANCE_Generator",
+                bus="Imbalance",
+                carrier = "negative_IMBALANCE_Generator",
+                p_nom=50000,
+                p_max_pu=0)
     
     # Add essential links
-    network.add("Link", "Grid_to_SS", bus0="Electricity_Grid", bus1="SS", p_nom=20_000, carrier="Grid_to_SS")
-    network.add("Link", "SS_to_Grid", bus0="SS", bus1="Electricity_Grid", p_nom=20_000, carrier="SS_to_Grid")
-    network.add("Link", "SS_to_Household", bus0="SS", bus1="Household", p_nom=20_000, marginal_cost=ENERGY_TAX, carrier="SS_to_Household")
-    network.add("Link", "Household_to_SS", bus0="Household", bus1="SS", p_nom=20_000, carrier="Household_to_SS")
+    network.add("Link", "Grid_to_SS", bus0="Electricity_Grid", bus1="SS", p_nom=50000, carrier="Grid_to_SS")
+    network.add("Link", "SS_to_Grid", bus0="SS", bus1="Electricity_Grid", p_nom=50000, carrier="SS_to_Grid")
+    network.add("Link", "Grid_to_DAM", bus0="Electricity_Grid", bus1="DAM", p_nom=50000, carrier="Grid_to_DAM")
+    network.add("Link", "DAM_to_Grid", bus0="DAM", bus1="Electricity_Grid", p_nom=50000, carrier="DAM_to_Grid")
+    network.add("Link", "Imbalance_to_Grid", bus0="Imbalance", bus1="Electricity_Grid", p_nom=50000, carrier="Imbalance_to_Grid")
+    network.add("Link", "Grid_to_Imbalance", bus0="Electricity_Grid", bus1="Imbalance", p_nom=50000, carrier="Grid_to_Imbalance")
+    network.add("Link", "SS_to_Household", bus0="SS", bus1="Household", p_nom=50000, marginal_cost=ENERGY_TAX, carrier="SS_to_Household")
+    network.add("Link", "Household_to_SS", bus0="Household", bus1="SS", p_nom=50000, carrier="Household_to_SS")
+
    
     network.add("Link", "Household_to_BESS",
                 bus0="Household", bus1="Battery",
@@ -89,4 +95,4 @@ def create_network(battery_specs_file, prices, charge_prices, discharge_prices, 
                 efficiency=battery_specs["discharge_efficiency"],
                 carrier="discharge")
 
-    return network 
+    return network
