@@ -171,7 +171,7 @@ def solve_network(year, week):
 
 if __name__ == "__main__":
     year = 2024
-    week = 30
+    week = 24
  # Change this value to select a different week 
     ENERGY_TAX = 0.123  # €/MWh
     solved_network = solve_network(year, week)
