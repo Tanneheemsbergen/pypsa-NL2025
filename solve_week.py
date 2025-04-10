@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 from network import create_network
-from utils import bus_balance
+from utils.utils import bus_balance
 
 # Use ISO calendar week: Monday is the first day of the week.
 def get_week_range(year, week):
@@ -50,9 +50,6 @@ def load_imbalance_prices(filepath, year, week):
             discharge_val = surplus_val
         elif reg_state == -1:
             charge_val = shortage_val
-        elif reg_state == 2:
-            discharge_val = surplus_val
-            charge_val = shortage_val
 
         discharge_prices.append(discharge_val)
         charge_prices.append(charge_val)
@@ -78,7 +75,6 @@ def load_imbalance_prices(filepath, year, week):
 
     return discharge_series, charge_series, discharge_mask_series, charge_mask_series
 
-
 def solve_network(year, week):
     print(f"Solving network for Year {year}, Week {week}")
     load_path = "data/new_SS_Monnickendam.csv"
@@ -96,12 +92,17 @@ def solve_network(year, week):
     snapshots = pd.date_range(start=start, end=end, freq="15min", inclusive="left") 
     network.set_snapshots(snapshots, weightings_from_timedelta=True)
      #  Deactivate imbalance generators (STATIC component table)
-    network.generators.at["IMBALANCE_Generator", "active"] = False
-    network.generators.at["negative_IMBALANCE_Generator", "active"] = False
-    network.generators.at["DAM_Generator", "active"] = True
-    network.generators.at["negative_DAM_Generator", "active"] = True
+    network.generators.at["IMBALANCE_Generator", "active"] = True
+    network.generators.at["negative_IMBALANCE_Generator", "active"] = True
+    network.generators.at["DAM_Generator", "active"] = False
+    network.generators.at["negative_DAM_Generator", "active"] = False
     network.generators_t.p_max_pu.loc[:, "IMBALANCE_Generator"] = charge_mask
     network.generators_t.p_min_pu.loc[:, "negative_IMBALANCE_Generator"] = -discharge_mask
+
+    network.links_t.p_max_pu.loc[:, "Household_to_BESS"] = charge_mask
+    network.links_t.p_max_pu.loc[:, "BESS_to_Household"] = discharge_mask
+   # Set the status for the charging link directly based on charge_mask.
+
     # Apply demand and price data
     network.loads_t.p_set.loc[:, "household_load"] = 0
     network.generators_t.marginal_cost = pd.DataFrame({
@@ -116,12 +117,14 @@ def solve_network(year, week):
 
 if __name__ == "__main__":
     year = 2024
-    week = 24 # Change this value to select a different week 
+    week = 18 # Change this value to select a different week 
     ENERGY_TAX = 0.123  # €/MWh
     solved_network = solve_network(year, week)
-    solved_network.stores_t.p.plot()
-    #Optionally, visualize network balances:
     
+    solved_network.stores_t.p.plot()
+    #solved_network.stores_t.p.loc["2024-06-14"].plot()
+    #solved_network.stores_t.p.loc["2024-06-15"].plot()
+    #Optionally, visualize network balances:
     fig = bus_balance(solved_network, "Household", resample="15 min")
     fig.show()
     #

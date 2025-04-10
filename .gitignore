@@ -12,3 +12,5 @@ data/
 *.csv
 
 plots/
+
+API/

@@ -27,7 +27,6 @@ def create_network(battery_specs_file, prices, charge_prices, discharge_prices, 
     # Add buses
    
     network.add("Bus", "Electricity_Grid", carrier="electricity")
-    network.add("Bus", "Battery", carrier="electricity")
 
     
    # Add generator
@@ -47,27 +46,15 @@ def create_network(battery_specs_file, prices, charge_prices, discharge_prices, 
                  p_max_pu=0
                  )
 
-     # Add BESS as a Store
-    network.add("Store", "BESS",
-                bus="Battery",
-                carrier="electricity",
-                e_nom=battery_specs["capacity_mwh"],
-                e_initial=battery_specs["initial_soc_mwh"],
-                standing_loss=battery_specs["standing_loss"])
-    
-    network.add("Link", "Household_to_BESS",
-                bus0="Electricity_Grid", bus1="Battery",
-                p_nom=battery_specs["charge_power_mw"],
-                p_nom_extendable=False,
-                efficiency=battery_specs["charge_efficiency"],
-                carrier="charge")
-
-    network.add("Link", "BESS_to_Household",
-                bus0="Battery", bus1="Electricity_Grid",
-                p_nom=battery_specs["discharge_power_mw"],
-                p_nom_extendable=False,
-                efficiency=battery_specs["discharge_efficiency"],
-                carrier="discharge")
+    network.add("StorageUnit", "BESS",
+                 bus="Electricity_Grid",
+                 carrier="BESS",
+                 p_nom=battery_specs["capacity_mwh"],
+                 standing_loss=battery_specs["standing_loss"],
+                 efficiency_store=0.91,
+                 efficiency_dispatch=0.91,
+                 initial_soc=battery_specs["initial_soc_mwh"],
+                )
     
     return network
 
@@ -188,6 +175,7 @@ if __name__ == "__main__":
  # Change this value to select a different week 
     ENERGY_TAX = 0.123  # €/MWh
     solved_network = solve_network(year, week)
-    solved_network.stores_t.p.plot()
+    solved_network.storage_units_t.p.plot()
     print(solved_network.snapshots[:10])
     #Optionally, visualize network balances:
+  

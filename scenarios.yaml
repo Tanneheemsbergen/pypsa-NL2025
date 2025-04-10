@@ -1,0 +1,35 @@
+# scenarios.yaml
+# Defines different capacity splits between DAM and Imbalance markets
+
+scenarios:
+  default_80_20:
+    description: "80% capacity for DAM, 20% for Imbalance (original setting)"
+    dam_capacity_fraction: 0.8
+    imbalance_capacity_fraction: 0.2
+
+  balanced_50_50:
+    description: "Equal split: 50% capacity for DAM, 50% for Imbalance"
+    dam_capacity_fraction: 0.5
+    imbalance_capacity_fraction: 0.5
+
+  dam_focused_90_10:
+    description: "Focus on DAM: 90% capacity for DAM, 10% for Imbalance"
+    dam_capacity_fraction: 0.9
+    imbalance_capacity_fraction: 0.1
+
+  imbalance_focused_10_90:
+    description: "Focus on Imbalance: 10% capacity for DAM, 90% for Imbalance"
+    dam_capacity_fraction: 0.1
+    imbalance_capacity_fraction: 0.9
+
+  dam_only:
+    description: "Allocate 100% capacity to DAM"
+    dam_capacity_fraction: 1.0
+    imbalance_capacity_fraction: 0.0
+
+  imbalance_only:
+    description: "Allocate 100% capacity to Imbalance"
+    dam_capacity_fraction: 0.0
+    imbalance_capacity_fraction: 1.0
+
+# Add more scenarios as needed following the same structure

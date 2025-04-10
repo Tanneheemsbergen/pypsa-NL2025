@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 import copy  # Import copy for deep copying objects
 from network import create_network  # Import the network creation function
-from utils import bus_balance  # Import the bus balance function
+from utils.utils import bus_balance  # Import the bus balance function
 
 def get_week_range(year, week):
     """
@@ -121,6 +121,9 @@ def solve_network(year, week):
 
     # Scale battery capacity
     DAM_network.stores.loc["BESS", "e_nom"] *= 0.8
+    DAM_network.links.loc["BESS_to_Household", "p_nom"] *= 0.8
+    DAM_network.links.loc["Household_to_BESS", "p_nom"] *= 0.8
+    
 
     DAM_network.optimize(DAM_network.snapshots, solver_name="highs")
 
@@ -130,9 +133,11 @@ def solve_network(year, week):
     #  Reactivate imbalance generators
     Onbalans_network.generators.at["IMBALANCE_Generator", "active"] = True
     Onbalans_network.generators.at["negative_IMBALANCE_Generator", "active"] = True
-
+    Onbalans_network.loads_t.p_set.loc[:, "household_load"] = 0
     #  Full storage capacity
-    Onbalans_network.stores.loc["BESS", "e_nom"] *= 1
+    Onbalans_network.stores.loc["BESS", "e_nom"] *= 0.2
+    Onbalans_network.links.loc["BESS_to_Household", "p_nom"] *= 0.2
+    Onbalans_network.links.loc["Household_to_BESS", "p_nom"] *= 0.2
 
     # Assign the time-dependent p_max_pu
     Onbalans_network.generators_t.p_max_pu.loc[:, "IMBALANCE_Generator"] = charge_mask

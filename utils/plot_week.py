@@ -1,9 +1,9 @@
 import pandas as pd
 import matplotlib.pyplot as plt
-import pypsa
-from pypsa import statistics
+import sys
+import os
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from solve_week import solve_network
-from matplotlib.animation import FuncAnimation
 
 def plot_simulation_results(network):
     """Plots household load, battery storage, and grid imports."""
@@ -94,7 +94,7 @@ if __name__ == "__main__":
     for t, value in ss_load.items():
         if value > 0:
             print(f"At {t}, SS load: {value} kW")
-    #plot_simulation_results(solved_network)
+    plot_simulation_results(solved_network)
     plot_bess_performance(solved_network)
     # Plot SS Monnickendam Load Profile
     #plot_ss_monnickendam("data/SS_Monnickendam.csv")

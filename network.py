@@ -1,7 +1,6 @@
 import os
-import yaml
 import pypsa
-import pandas as pd
+import yaml
 
 def create_network(battery_specs_file, prices, charge_prices, discharge_prices, year):
     """Creates a PyPSA network with buses, generators, loads, BESS as Store, and links."""
@@ -16,7 +15,7 @@ def create_network(battery_specs_file, prices, charge_prices, discharge_prices, 
 
     # Create PyPSA network
     network = pypsa.Network()
-    ENERGY_TAX = 0.0
+    ENERGY_TAX = 0.123
     # Add Components
     network.add("Carrier", "electricity")
 
@@ -86,6 +85,7 @@ def create_network(battery_specs_file, prices, charge_prices, discharge_prices, 
                 p_nom=battery_specs["charge_power_mw"],
                 p_nom_extendable=False,
                 efficiency=battery_specs["charge_efficiency"],
+                marginal_cost=15.6,
                 carrier="charge")
 
     network.add("Link", "BESS_to_Household",
@@ -93,6 +93,7 @@ def create_network(battery_specs_file, prices, charge_prices, discharge_prices, 
                 p_nom=battery_specs["discharge_power_mw"],
                 p_nom_extendable=False,
                 efficiency=battery_specs["discharge_efficiency"],
+                marginal_cost=15.6,
                 carrier="discharge")
 
     return network

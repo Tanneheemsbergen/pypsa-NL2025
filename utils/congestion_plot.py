@@ -159,25 +159,32 @@ print(f"Congestion timestamps saved to: {output_csv_path}")
 # %%
 
 # %%
-#congestion frequency
-df_2032 = df_congestion[df_congestion["jaar"] == 2030]
-# Extract hour of congestion occurrences
-df_2032["hour"] = df_2032["datum_tijd"].dt.hour
+import pandas as pd
+import matplotlib.pyplot as plt
 
-# Count congestion occurrences per hour
-hourly_congestion = df_2032["hour"].value_counts().sort_index()
+# Filter 2024 congestion data
+df_2024 = df_congestion[df_congestion["jaar"] == 2030].copy()
+
+# Extract hour from datetime
+df_2024["hour"] = df_2024["datum_tijd"].dt.hour
+
+# Count congestion occurrences per hour, ensuring all 24 hours are included
+hourly_congestion = df_2024["hour"].value_counts().sort_index()
+hourly_congestion = hourly_congestion.reindex(range(24), fill_value=0)
+
+# Plot
 plt.figure(figsize=(12, 5))
-sns.barplot(x=hourly_congestion.index, y=hourly_congestion.values, color="red", alpha=0.8)
+plt.bar(hourly_congestion.index, hourly_congestion.values, color="red", alpha=0.8)
 
-# Labels
+# Labels and formatting
 plt.xlabel("Hour of the Day")
 plt.ylabel("Congestion Occurrences")
 plt.title("Congestion Frequency Per Hour in 2030")
-
-# Formatting
-plt.xticks(range(0, 24), labels=[f"{h}:00" for h in range(0, 24)])
+plt.xticks(range(0, 24), [f"{h}:00" for h in range(24)])
 plt.grid(axis="y", linestyle="--", alpha=0.7)
+plt.tight_layout()
 plt.show()
+
 
 # %%
 # Shows imbalance market prices
@@ -210,4 +217,7 @@ plt.legend(loc='lower left')
 plt.grid(True)
 plt.tight_layout()
 plt.show()
+# %%
+
+
 # %%
