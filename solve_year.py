@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 from network import create_network
+from network import extra_bess_link_status
 from utils.utils import bus_balance
 
 def get_year_range(year):
@@ -116,13 +117,13 @@ def solve_network(year):
     # Set generator activity flags:
     network.generators.at["IMBALANCE_Generator", "active"] = False
     network.generators.at["negative_IMBALANCE_Generator", "active"] = False
+    network.generators.at["PV_Generator", "active"] = False
     network.generators.at["DAM_Generator", "active"] = True
     network.generators.at["negative_DAM_Generator", "active"] = True
     
     # Assign imbalance masks (ensure your arrays have the same length as snapshots)
     network.generators_t.p_max_pu.loc[:, "IMBALANCE_Generator"] = charge_mask
     network.generators_t.p_min_pu.loc[:, "negative_IMBALANCE_Generator"] = -discharge_mask
-    
     # Set demand and marginal cost from prices on the network
     network.loads_t.p_set.loc[:, "household_load"] = 0
     network.generators_t.marginal_cost = pd.DataFrame({
@@ -132,13 +133,13 @@ def solve_network(year):
         "negative_IMBALANCE_Generator": discharge_prices
     }, index=network.snapshots)
     
-    network.optimize(network.snapshots, solver_name="highs" )
+    network.optimize(network.snapshots, solver_name="highs", extra_functionality=extra_bess_link_status)
     return network
 
 if __name__ == "__main__":
     # Change the year as needed (e.g., 2024 or 2030)
     year = 2024
-    ENERGY_TAX = 0.123  # €/MWh
+    ENERGY_TAX = 0.12286  # €/MWh
     solved_network = solve_network(year)
     
     # Plot the storage profiles

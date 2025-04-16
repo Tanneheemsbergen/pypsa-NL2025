@@ -1,9 +1,22 @@
-#capacity = charge_power * 4.2 (average duration of R-BESS)
 capacity_mwh: 3.3156
+charge_efficiency: 0.91
+charge_power_mw: 0.8289
+discharge_efficiency: 0.91
+discharge_power_mw: 0.8289
 initial_soc_mwh: 0
 standing_loss: 0.001
-# power = households Monnickendam / total households * amount of household batteries = 3276/8300000 *2.1GW
-charge_power_mw: 0.8289
-discharge_power_mw: 0.8289
-charge_efficiency: 0.91
-discharge_efficiency: 0.91
+
+pv:
+  # Calculation explanation:
+  # Monnickendam has 3276 households.
+  # On average, Dutch households have 7.35 solar panels (3.5 panels/person * 2.1 persons/household).
+  # Total estimated solar panels = 3276 * 7.35 ≈ 24,078
+  # Assuming each panel is 0.4 kW (400 W), total capacity = 24,078 * 0.4 = 9631.2 kW = 9.6312 MW
+
+  p_nom: 9.6312  # Updated from calculation
+  amount_of_solar_panels: 24078  # Estimated total solar panels in Monnickendam
+  power_per_panel_kw: 0.4        # Assumed power of a single panel
+
+  tilt: 30                       # Tilt angle in degrees
+  azimuth: 180                   # Orientation (south-facing)
+  performance_ratio: 0.8
