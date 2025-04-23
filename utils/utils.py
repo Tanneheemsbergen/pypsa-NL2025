@@ -160,14 +160,11 @@ def bus_balance(network: pypsa.Network, bus: str, unify_color_palette: bool = Fa
         df_monthly.index = df_monthly.index.month_name()
         fig_monthly = px.bar(df_monthly, barmode="stack", color_discrete_sequence=colors_crest(number=len(df_monthly.columns)))
         fig_monthly.update_layout(template="simple_white", yaxis_title="Energy [MWh]", xaxis_title="", title="Monthly generation")
-        fig_monthly.update_xaxes(
-            showgrid=True,
-            tickformat="%b-%Y"
-        )
-        fig_monthly.update_yaxes(
-            showgrid=True,
-            gridwidth=1,
-        )
+        fig_monthly.update_xaxes(showgrid=True, tickformat="%b-%Y")
+        fig_monthly.update_yaxes(showgrid=True, gridwidth=1)
+        fig_monthly.write_image(f"{bus}_monthly_generation.svg", format="svg")
         return fig_monthly
 
+    fig.write_image(f"{bus}_bus_balance.svg", format="svg")
+    fig.write_image("household_bus_balance.svg", format="svg")
     return fig

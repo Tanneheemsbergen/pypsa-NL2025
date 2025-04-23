@@ -1,0 +1,6 @@
+paths:
+  load: data/new_SS_Monnickendam.csv
+  day_ahead_prices: data/new_day_ahead.csv
+  imbalance_prices: data/new_settlement_prices.csv
+  solar_profile: data/solar_generation_profile_2024_15min.csv
+  battery_specs: config/battery_specs.yaml

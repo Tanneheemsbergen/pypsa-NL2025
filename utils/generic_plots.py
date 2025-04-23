@@ -2,7 +2,7 @@
 # %%
 import pandas as pd
 import matplotlib.pyplot as plt
-from network import create_network
+from core.network import create_network
 import networkx as nx
 import matplotlib.pyplot as plt
 import seaborn as sns

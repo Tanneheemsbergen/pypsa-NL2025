@@ -2,119 +2,42 @@ import pandas as pd
 import os
 import numpy as np
 import copy
-from network import create_network
+from core.network import create_network, extra_bess_link_status
+from core.config_loader import load_config
 from utils.utils import bus_balance
-from scenarios.load_scenarios import load_scenarios
+from scenarios.load_scenarios import load_scenarios2
+from core.load_year import (
+    load_load_levels,
+    load_day_ahead_prices,
+    load_imbalance_prices,
+    get_year_range,
+    load_solar_profile
+)
+from utils.congestion_year import combined_congestion_summary_year, plot_congestion_time_rose
 
-
-def get_year_range(year):
-    """
-    Returns a time range of exactly 365 days starting from January 1st of the given year.
-    (Even if the year is a leap year, the simulation will cover only 365 days.)
-    """
-    start = pd.Timestamp(year, 1, 1)
-    # Force end to be exactly 365 days after start
-    end = start + pd.Timedelta(days=365)
-    print(f"For year {year}: start = {start} and end = {end}")
-    return start, end
-
-def load_load_levels(filepath, year):
-    # Load the CSV with datetime parsing on the "datetime" column.
-    df = pd.read_csv(filepath, parse_dates=["datetime"])
-    # Set "datetime" as the DataFrame index for easier filtering.
-    df.set_index("datetime", inplace=True)
-    print(f"Loaded {len(df)} rows from {filepath}")
-
-    # Filter the DataFrame for rows that belong to the specified year.
-    df_year = df[df.index.year == year].copy()
-    
-    # Debug: Print the first and last 5 rows for the selected year.
-    print(f"First 5 rows for year {year}:\n", df_year.head(5))
-    print(f"Last 5 rows for year {year}:\n", df_year.tail(5))
-    
-    # Return the 'belasting' values directly as a NumPy array.
-    df_year.to_csv("test.csv", index=True)
-    return df_year["belasting"].values
-
-def load_day_ahead_prices(filepath, year):
-    """
-    Loads day-ahead electricity prices for the given year from a CSV file and returns the price values.
-    Assumes the CSV is indexed by datetime and contains a column "prices".
-    """
-    # Load CSV file with the datetime index (assumed to be in the first column).
-    df = pd.read_csv(filepath, parse_dates=True, index_col=0)
-    print(f"Loaded {len(df)} rows from day-ahead prices file.")
-    
-    # Debug: print the first and last 5 rows (includes datetime and prices)
-    print("First 5 rows:\n", df.head(5))
-    print("Last 5 rows:\n", df.tail(5))
-    
-    # Return the "prices" column values directly as a NumPy array.
-    return df["price"].values
-
-def load_imbalance_prices(filepath, year):
-    df = pd.read_csv(filepath, parse_dates=["timeinterval"])
-    start, end = get_year_range(year)
-    df_year = df[(df["timeinterval"] >= start) & (df["timeinterval"] < end)]
-
-    discharge_prices = []
-    charge_prices = []
-    discharge_mask = []
-    charge_mask = []
-
-    for _, row in df_year.iterrows():
-        reg_state = row["regulation_state"]
-        surplus_val = row["price_surplus"]
-        shortage_val = row["price_shortage"]
-
-        discharge_val = np.nan
-        charge_val = np.nan
-
-        if reg_state == 1:
-            discharge_val = surplus_val
-        elif reg_state == -1:
-            charge_val = shortage_val
-        #elif reg_state == 2:
-            #discharge_val = surplus_val
-            #charge_val = shortage_val    
-
-        discharge_prices.append(discharge_val)
-        charge_prices.append(charge_val)
-        discharge_mask.append(int(not np.isnan(discharge_val)))
-        charge_mask.append(int(not np.isnan(charge_val)))
-
-    index = df_year["timeinterval"]
-    # Create time-indexed series
-    discharge_series = pd.Series(discharge_prices, index=index)
-    charge_series = pd.Series(charge_prices, index=index)
-    discharge_mask_series = pd.Series(discharge_mask, index=index)
-    charge_mask_series = pd.Series(charge_mask, index=index)
-
-    # Combine the imbalance data and optionally save for debugging purposes
-    result_df = pd.DataFrame({
-        "discharge_price": discharge_series,
-        "charge_price": charge_series,
-        "discharge_mask": discharge_mask_series,
-        "charge_mask": charge_mask_series
-    })
-    result_df.to_csv("imbalance_debug_output.csv", index=True)
-
-    return discharge_series, charge_series, discharge_mask_series, charge_mask_series
-
-def solve_network(year, dam_share, imbalance_share):
+def solve_network(year, scenario, energy_tax):
+    dam_share = scenario["dam_share"]
+    imbalance_share = scenario["imbalance_share"]
     print(f"Solving network for Year {year} with scenario: DAM share = {dam_share}, Imbalance share = {imbalance_share}")
-    load_path = "data/new_SS_Monnickendam.csv"
-    day_ahead_prices_path = "data/new_day_ahead.csv"
-    imbalance_prices_path = "data/new_settlement_prices.csv"
+    config = load_config()
+    paths = config["paths"]
+
+    load_path = paths["load"]
+    day_ahead_prices_path = paths["day_ahead_prices"]
+    imbalance_prices_path = paths["imbalance_prices"]
+    solar_profile_path = paths["solar_profile"]
+    battery_specs_path = paths["battery_specs"]
     
     demand = load_load_levels(load_path, year)
     prices = load_day_ahead_prices(day_ahead_prices_path, year)
     discharge_prices, charge_prices, discharge_mask, charge_mask = load_imbalance_prices(imbalance_prices_path, year)
+    solar_generation = load_solar_profile(solar_profile_path, year)
     
-    base_network = create_network("battery_specs.yaml", prices, charge_prices, discharge_prices, year)
+    base_network = create_network(battery_specs_path, prices, charge_prices, discharge_prices, year, energy_tax)
     start, end = get_year_range(year)
     timestamps = pd.date_range(start=start, end=end, freq="15min", inclusive="left")
     base_network.set_snapshots(timestamps, weightings_from_timedelta=True)
+
     
     base_network.loads_t.p_set.loc[:, "household_load"] = demand
     base_network.generators_t.marginal_cost = pd.DataFrame({
@@ -135,14 +58,16 @@ def solve_network(year, dam_share, imbalance_share):
     DAM_network.stores.loc["BESS", "e_nom"] *= dam_share
     DAM_network.links.loc["BESS_to_Household", "p_nom"] *= dam_share
     DAM_network.links.loc["Household_to_BESS", "p_nom"] *= dam_share
+    DAM_network.generators_t.p_max_pu.loc[:, "PV_Generator"] = solar_generation
 
     print("Optimizing DAM network...")
-    DAM_network.optimize(DAM_network.snapshots, solver_name="highs")
+    DAM_network.optimize(DAM_network.snapshots, solver_name="highs", extra_functionality=extra_bess_link_status)
     
     # --- Imbalance Network Setup ---
     Onbalans_network = copy.deepcopy(base_network)
     Onbalans_network.generators.at["DAM_Generator", "active"] = False
     Onbalans_network.generators.at["negative_DAM_Generator", "active"] = False
+    Onbalans_network.generators.at["PV_Generator", "active"] = False
     Onbalans_network.generators.at["IMBALANCE_Generator", "active"] = True
     Onbalans_network.generators.at["negative_IMBALANCE_Generator", "active"] = True
     Onbalans_network.loads_t.p_set.loc[:, "household_load"] = 0
@@ -157,39 +82,36 @@ def solve_network(year, dam_share, imbalance_share):
         "negative_IMBALANCE_Generator": discharge_prices
     }, index=Onbalans_network.snapshots)
 
+    Onbalans_network.generators_t.p_set["DAM_Generator"] = DAM_network.generators_t.p["DAM_Generator"]
     print("Optimizing imbalance network...")
-    Onbalans_network.optimize(Onbalans_network.snapshots, solver_name="highs")
+    Onbalans_network.optimize(Onbalans_network.snapshots, solver_name="highs", extra_functionality=extra_bess_link_status)
     
     return DAM_network, Onbalans_network
 
 if __name__ == "__main__":
     year = 2024
     # Set the scenario manually (just like you do for the year)
-    scenario_name = "scenario_0.7_0.3"  # Change this value to choose a different scenario
-
-    scenarios_file = os.path.join("scenarios", "scenarios.yaml")
-    scenarios = load_scenarios(scenarios_file)
+    scenario_name = "scenario_0.8_0.2"  # kies zelf
+    scenarios = load_scenarios2()
+    scenario = next(s for s in scenarios if s["name"] == scenario_name)
+    energy_tax = scenario["energy_tax"]
     
-    selected_scenario = None
-    for scenario in scenarios:
-        if scenario["name"] == scenario_name:
-            selected_scenario = scenario
-            break
-    dam_share = selected_scenario["dam_share"]
-    imbalance_share = selected_scenario["imbalance_share"]
-    
-    print(f"Running scenario: {selected_scenario['name']}")
-    DAM_solve, Imbalance_solve = solve_network(year, dam_share, imbalance_share)
+    print(f"Running scenario: {scenario['name']}")
+    DAM_solve, Imbalance_solve = solve_network(year, scenario, energy_tax)
     
     print("DAM network objective:", DAM_solve.objective)
     print("Imbalance network objective:", Imbalance_solve.objective)
     
     # Optionally, plot or save results for the selected scenario.
-    DAM_solve.stores_t.p.plot(title=f"DAM Network Battery Dispatch ({selected_scenario['name']})")
-    Imbalance_solve.stores_t.p.plot(title=f"Imbalance Network Battery Dispatch ({selected_scenario['name']})")
+    DAM_solve.stores_t.p.plot(title=f"DAM Network Battery Dispatch ({scenario['name']})")
+    Imbalance_solve.stores_t.p.plot(title=f"Imbalance Network Battery Dispatch ({scenario['name']})")
     
     fig_household = bus_balance(Imbalance_solve, "Household", resample="15 min")
     fig_household.show()
     
     fig_grid = bus_balance(Imbalance_solve, "Electricity_Grid", resample="15 min")
     fig_grid.show()
+    fig3 = combined_congestion_summary_year(DAM_solve, Imbalance_solve, year)
+    fig3.show()
+    fig_dam = plot_congestion_time_rose(DAM_solve, year)
+    fig_imb = plot_congestion_time_rose(Imbalance_solve, year)

@@ -3,35 +3,44 @@ scenarios:
   - name: "scenario_0.9_0.1"
     dam_share: 0.9
     imbalance_share: 0.1
+    energy_tax: 0.12286
 
   - name: "scenario_0.8_0.2"
     dam_share: 0.8
     imbalance_share: 0.2
+    energy_tax: 0.12286
 
   - name: "scenario_0.7_0.3"
     dam_share: 0.7
     imbalance_share: 0.3
+    energy_tax: 0.12286
 
   - name: "scenario_0.6_0.4"
     dam_share: 0.6
     imbalance_share: 0.4
+    energy_tax: 0.12286
 
   - name: "scenario_0.5_0.5"
     dam_share: 0.5
     imbalance_share: 0.5
+    energy_tax: 0.12286
 
   - name: "scenario_0.4_0.6"
     dam_share: 0.4
     imbalance_share: 0.6
+    energy_tax: 0.12286
 
   - name: "scenario_0.3_0.7"
     dam_share: 0.3
     imbalance_share: 0.7
+    energy_tax: 0.12286
 
   - name: "scenario_0.2_0.8"
     dam_share: 0.2
     imbalance_share: 0.8
+    energy_tax: 0.12286
     
   - name: "scenario_0.1_0.9"
     dam_share: 0.1
     imbalance_share: 0.9
+    energy_tax: 0.12286
