@@ -12,19 +12,34 @@ def load_load_levels(filepath, year, week):
     df = pd.read_csv(filepath, parse_dates=["datetime"])
     df = df[df["jaar"] == year]
     start, end = get_week_range(year, week)
-    df_week = df[(df["datetime"] >= start) & (df["datetime"] < end)]
+
+    # Breek de expressie met haakjes, geen backslash nodig
+    df_week = (
+        df[(df["datetime"] >= start) & (df["datetime"] < end)]
+        .set_index("datetime")
+    )
     print(f"Load levels for week {week} of {year}:")
     print(df_week)
-    return df_week["belasting"].values
+    return df_week["belasting"]
 
 def load_day_ahead_prices(filepath, year, week):
+    # Lees in met parse_dates
     df = pd.read_csv(filepath, parse_dates=["datetime"])
+    # Filter op jaar
     df = df[df["jaar"] == year]
+    # Bepaal begin en eind van de week
     start, end = get_week_range(year, week)
-    df_week = df[(df["datetime"] >= start) & (df["datetime"] < end)]
+
+    # Gebruik haakjes om de lijn te breken, en zet datetime als index
+    df_week = (
+        df[(df["datetime"] >= start) & (df["datetime"] < end)]
+        .set_index("datetime")
+    )
+
     print(f"Day-ahead prices for week {week} of {year}:")
     print(df_week)
-    return df_week["price"].values
+    # Retourneer de Series, inclusief index en name="price"
+    return df_week["price"]
 
 def load_imbalance_prices(filepath, year, week):
     df = pd.read_csv(filepath, parse_dates=["timeinterval"])
@@ -86,4 +101,4 @@ def load_solar_profile(filepath, year, week):
     df_week = df[(df.index >= start) & (df.index < end)]
     print(f"Solar generation profile for week {week} of {year}:")
     print(df_week.head())
-    return df_week["solar_generation"].values
+    return df_week["solar_generation"]

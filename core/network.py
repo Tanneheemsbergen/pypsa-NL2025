@@ -14,7 +14,7 @@ def create_network(battery_specs_file, prices, charge_prices, discharge_prices, 
 
     network.add("Carrier", "electricity")
 
-    network.add("Bus", "SS", carrier="electricity")
+    network.add("Bus", "MRS", carrier="electricity")
     network.add("Bus", "Electricity_Grid", carrier="electricity")
     network.add("Bus", "DAM", carrier="electricity")
     network.add("Bus", "Imbalance", carrier="electricity")
@@ -22,7 +22,7 @@ def create_network(battery_specs_file, prices, charge_prices, discharge_prices, 
     network.add("Bus", "Battery", carrier="electricity")
     network.add("Bus", "PV", carrier="electricity")
 
-    network.add("Load", "household_load", bus="Household", carrier="electricity")
+    network.add("Load", "HouseholdLoad", bus="Household", carrier="electricity")
 
     network.add("Store", "BESS",
                 bus="Battery",
@@ -65,17 +65,17 @@ def create_network(battery_specs_file, prices, charge_prices, discharge_prices, 
                 p_nom=50000,
                 p_max_pu=0)
 
-    network.add("Link", "Grid_to_SS", bus0="Electricity_Grid", bus1="SS", p_nom=50000, carrier="Grid_to_SS")
-    network.add("Link", "SS_to_Grid", bus0="SS", bus1="Electricity_Grid", p_nom=50000, carrier="SS_to_Grid")
-    network.add("Link", "Grid_to_DAM", bus0="Electricity_Grid", bus1="DAM", p_nom=50000, carrier="Grid_to_DAM")
-    network.add("Link", "DAM_to_Grid", bus0="DAM", bus1="Electricity_Grid", p_nom=50000, carrier="DAM_to_Grid")
-    network.add("Link", "Imbalance_to_Grid", bus0="Imbalance", bus1="Electricity_Grid", p_nom=50000, carrier="Imbalance_to_Grid")
-    network.add("Link", "Grid_to_Imbalance", bus0="Electricity_Grid", bus1="Imbalance", p_nom=50000, carrier="Grid_to_Imbalance")
-    network.add("Link", "SS_to_Household", bus0="SS", bus1="Household", p_nom=50000, marginal_cost= energy_tax, carrier="SS_to_Household")
-    network.add("Link", "Household_to_SS", bus0="Household", bus1="SS", p_nom=50000, marginal_cost= -energy_tax, carrier="Household_to_SS")
-    network.add("Link", "PV_to_Household", bus0="PV", bus1="Household", p_nom=50000, carrier="PV_to_Household")
+    network.add("Link", "Grid → MRS", bus0="Electricity_Grid", bus1="MRS", p_nom=50000, carrier="Grid → MRS")
+    network.add("Link", "MRS → Grid", bus0="MRS", bus1="Electricity_Grid", p_nom=50000, carrier="MRS → Grid")
+    network.add("Link", "Grid → DAM", bus0="Electricity_Grid", bus1="DAM", p_nom=50000, carrier="Grid → DAM")
+    network.add("Link", "DAM → Grid", bus0="DAM", bus1="Electricity_Grid", p_nom=50000, carrier="DAM → Grid")
+    network.add("Link", "Imbalance → Grid", bus0="Imbalance", bus1="Electricity_Grid", p_nom=50000, carrier="Imbalance → Grid")
+    network.add("Link", "Grid → Imbalance", bus0="Electricity_Grid", bus1="Imbalance", p_nom=50000, carrier="Grid → Imbalance")
+    network.add("Link", "MRS → Household", bus0="MRS", bus1="Household", p_nom=50000, marginal_cost= energy_tax, carrier="MRS → Household")
+    network.add("Link", "Household → MRS", bus0="Household", bus1="MRS", p_nom=50000, marginal_cost= -energy_tax, carrier="Household → MRS")
+    network.add("Link", "PV → Household", bus0="PV", bus1="Household", p_nom=50000, carrier="PV → Household")
 
-    network.add("Link", "Household_to_BESS",
+    network.add("Link", "Household → BESS",
                 bus0="Household", bus1="Battery",
                 p_nom=battery_specs["charge_power_mw"],
                 p_nom_extendable=False,
@@ -84,7 +84,7 @@ def create_network(battery_specs_file, prices, charge_prices, discharge_prices, 
                 committable=True,
                 carrier="charge")
 
-    network.add("Link", "BESS_to_Household",
+    network.add("Link", "BESS → Household",
                 bus0="Battery", bus1="Household",
                 p_nom=battery_specs["discharge_power_mw"],
                 p_nom_extendable=False,
@@ -95,16 +95,52 @@ def create_network(battery_specs_file, prices, charge_prices, discharge_prices, 
 
     return network
 
-def extra_bess_link_status(network, snapshots):
-    print("Running extra_bess_link_status extra functionality...")
+def extra_bess_link_status(
+    network,
+    snapshots,
+    enforce_time_windows: bool | None = None,
+    forbidden_windows: list[tuple[int,int]] | None = None
+    #enforce_time_windows: bool = True,
+    #forbidden_windows: list[tuple[int,int]] = [(12,14), (17,19)]
+):
+    # if not overridden on the call, fall back to attributes on network
+    if enforce_time_windows is None:
+        enforce_time_windows = getattr(network, "enforce_time_windows", False)
+    if forbidden_windows is None:
+        forbidden_windows = getattr(network, "forbidden_windows", [(12,14), (17,19)])
+    """
+    Adds to `network.model`:
+      1) Always: status_charge + status_discharge <= 1
+      2) If enforce_time_windows:
+           status_charge == 0 and status_discharge == 0
+           whenever snapshot.hour is in any forbidden_window.
+
+    :param network:    a solved-or-to-be-solved pypsa.Network
+    :param snapshots:  iterable of snapshot labels (e.g. network.snapshots)
+    :param enforce_time_windows:  toggle on/off the forbidden-period constraint
+    :param forbidden_windows:  list of (start_hour, end_hour) pairs;
+                               each interval is half-open: [start_hour, end_hour)
+    """
     m = network.model
+    status = m.variables["Link-status"]
+
     for s in snapshots:
-        try:
-            status_charge = m.variables["Link-status"].sel({"Link-com": "Household_to_BESS", "snapshot": s})
-            status_discharge = m.variables["Link-status"].sel({"Link-com": "BESS_to_Household", "snapshot": s})
-            m.add_constraints(status_charge + status_discharge <= 1,
-                              name=f"bess_status_exclusivity_{s}")
-        except Exception as e:
-            print(f"Error at snapshot {s}: {e}")
-            raise
-    print("Finished adding custom BESS link status constraints.")
+        ts = pd.to_datetime(s)
+        c = status.sel({"Link-com": "Household → BESS", "snapshot": s})
+        d = status.sel({"Link-com": "BESS → Household", "snapshot": s})
+
+        # 1) Never charge+discharge at once
+        m.add_constraints(
+            c + d <= 1,
+            name=f"bess_excl_{ts}"
+        )
+
+        # 2) Optionally block any activity in forbidden windows
+        if enforce_time_windows:
+            hr = ts.hour
+            # if current hour falls in any [start, end) window
+            for start, end in forbidden_windows:
+                if start <= hr < end:
+                    m.add_constraints(c == 0, name=f"bess_no_charge_{ts}")
+                    m.add_constraints(d == 0, name=f"bess_no_discharge_{ts}")
+                    break

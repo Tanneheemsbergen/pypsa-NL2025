@@ -1,15 +1,66 @@
 scenarios:
-  - name: Imbalance_only
-    energy_tax: 0.12286
-    generators:
-      DAM_Generator: false
-      negative_DAM_Generator: false
-      PV_Generator: false
-      IMBALANCE_Generator: true
-      negative_IMBALANCE_Generator: true
-    household_load: 0
+  # # Trading
+  # - name: Imbalance_only
+  #   energy_tax: 0.12286
+  #   generators:
+  #     DAM_Generator: false
+  #     negative_DAM_Generator: false
+  #     PV_Generator: false
+  #     IMBALANCE_Generator: true
+  #     negative_IMBALANCE_Generator: true
+  #   HouseholdLoad: 0
+  #   marginal_cost_Household_to_SS: 0
 
-  - name: DAM_only
+  # - name: DAM_only
+  #   energy_tax: 0.12286
+  #   generators:
+  #     DAM_Generator: true
+  #     negative_DAM_Generator: true
+  #     PV_Generator: false
+  #     IMBALANCE_Generator: false
+  #     negative_IMBALANCE_Generator: false
+  #   HouseholdLoad: 0
+  #   marginal_cost_Household_to_SS: 0
+
+  # # Trading with time constraints
+
+  # - name: Imbalance_only_time_constraints
+  #   energy_tax: 0.12286
+  #   enforce_time_windows: true
+  #   generators:
+  #     DAM_Generator: false
+  #     negative_DAM_Generator: false
+  #     PV_Generator: false
+  #     IMBALANCE_Generator: true
+  #     negative_IMBALANCE_Generator: true
+  #   HouseholdLoad: 0
+  #   marginal_cost_Household_to_SS: 0
+
+  # - name: DAM_only_time_constraints
+  #   energy_tax: 0.12286
+  #   enforce_time_windows: true
+  #   generators:
+  #     DAM_Generator: true
+  #     negative_DAM_Generator: true
+  #     PV_Generator: false
+  #     IMBALANCE_Generator: false
+  #     negative_IMBALANCE_Generator: false
+  #   HouseholdLoad: 0
+  #   marginal_cost_Household_to_SS: 0
+
+  # # Value stacking
+  # - name: DAM_plus_PV
+  #   energy_tax: 0.12286
+  #   generators:
+  #     DAM_Generator: true
+  #     negative_DAM_Generator: true
+  #     PV_Generator: true
+  #     IMBALANCE_Generator: false
+  #     negative_IMBALANCE_Generator: false
+  #   HouseholdLoad: demand
+  #   marginal_cost_Household_to_SS: -0.12286
+
+  - name: DAM_only_demand_serving
     energy_tax: 0.12286
     generators:
       DAM_Generator: true
@@ -17,9 +68,35 @@ scenarios:
       PV_Generator: false
       IMBALANCE_Generator: false
       negative_IMBALANCE_Generator: false
-    household_load: demand
+    HouseholdLoad: demand
+    marginal_cost_Household_to_SS: 0
 
-  - name: DAM_plus_PV
+   # Value stacking with time constraints
+  - name: DAM_plus_PV_time_constraints
+    energy_tax: 0.12286
+    enforce_time_windows: true
+    generators:
+      DAM_Generator: true
+      negative_DAM_Generator: true
+      PV_Generator: true
+      IMBALANCE_Generator: false
+      negative_IMBALANCE_Generator: false
+    HouseholdLoad: demand
+    marginal_cost_Household_to_SS: -0.12286
+  - name: DAM_only_demand_serving_time_constraints  
+    energy_tax: 0.12286
+    enforce_time_windows: true
+    generators:
+      DAM_Generator: true
+      negative_DAM_Generator: true
+      PV_Generator: false
+      IMBALANCE_Generator: false
+      negative_IMBALANCE_Generator: false
+    HouseholdLoad: demand
+    marginal_cost_Household_to_SS: 0
+
+  # Value stacking withouth net metering
+  - name: DAM_plus_PV_no_net_metering
     energy_tax: 0.12286
     generators:
       DAM_Generator: true
@@ -27,14 +104,6 @@ scenarios:
       PV_Generator: true
       IMBALANCE_Generator: false
       negative_IMBALANCE_Generator: false
-    household_load: demand
+    HouseholdLoad: demand
+    marginal_cost_Household_to_SS: 0
 
-  - name: DAM_Imbalance_PV
-    energy_tax: 0.12286
-    generators:
-      DAM_Generator: true
-      negative_DAM_Generator: true
-      PV_Generator: true
-      IMBALANCE_Generator: true
-      negative_IMBALANCE_Generator: true
-    household_load: demand

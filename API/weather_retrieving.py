@@ -1,56 +1,62 @@
 import atlite
 import logging
 import pandas as pd
+import os
 
 # Configure logging to display INFO-level messages.
 logging.basicConfig(level=logging.INFO)
 
-# Define the four three-month chunks for the year 2025.
-# Each tuple represents (start_date, end_date) where end_date is exclusive.
-# The end_date of one chunk is the start_date of the next.
-time_chunks = [
-    ("2024-01-01", "2024-04-01"),  # January to March
-    ("2024-04-01", "2024-07-01"),  # April to June
-    ("2024-07-01", "2024-10-01"),  # July to September
-    ("2024-10-01", "2025-01-01")   # October to December
-]
+# Ensure output directories exist
+os.makedirs("data/rawdata", exist_ok=True)
+os.makedirs("data", exist_ok=True)
 
-# List to hold DataFrames for each chunk.
-dfs = []
+master_dfs = []
 
-# Loop over each time chunk.
-for start, end in time_chunks:
-    logging.info(f"Processing time chunk from {start} to {end}")
+# Loop over each year from 2004 up to and including 2023
+for year in range(2004, 2024):
+    logging.info(f"Starting processing for year {year}")
+    year_dfs = []
     
-    # Create a cutout for the specified three-month period.
-    # Using slice objects for x and y to target a specific location.
-    # If a zero-width slice returns an empty dataset, try a minimal range:
-    #     x=slice(5, 5 + 1e-6), y=slice(52, 52 + 1e-6)
-    cutout = atlite.Cutout(
-        path=f"weather_2024_{start}.nc",  # Unique file name per chunk
-        module="era5",
-        x=slice(5, 6),   # Specify x dimension as a slice for a single grid point
-        y=slice(52, 53), # Specify y dimension as a slice for a single grid point
-        time=slice(start, end)
-    )
+    # Loop through each month 1–12
+    for month in range(1, 13):
+        start = f"{year}-{month:02d}-01"
+        # determine the next-month start
+        if month < 12:
+            end = f"{year}-{month+1:02d}-01"
+        else:
+            end = f"{year+1}-01-01"
+        
+        logging.info(f"  Processing {start} to {end}")
+        raw_nc = f"data/rawdata/weather_{year}_{month:02d}.nc"
+        
+        cutout = atlite.Cutout(
+            path=raw_nc,
+            module="era5",
+            x=slice(5, 6),
+            y=slice(52, 53),
+            time=slice(start, end)
+        )
+        cutout.prepare()
+        
+        df_chunk = cutout.data.to_dataframe()
+        year_dfs.append(df_chunk)
     
-    # Download and process the data for this chunk.
-    cutout.prepare()
+    # Combine all months of this year
+    df_year = pd.concat(year_dfs)
+    df_year.sort_index(inplace=True)
     
-    # Convert the processed data to a DataFrame.
-    df_chunk = cutout.data.to_dataframe()
+    # (Optional) save per-year CSV
+    out_csv_year = f"data/weather_{year}.csv"
+    df_year.to_csv(out_csv_year)
+    logging.info(f"  Year {year} saved to {out_csv_year}")
     
-    # Append the chunk data to our list.
-    dfs.append(df_chunk)
+    master_dfs.append(df_year)
 
-# Combine all the DataFrames into one.
-df_2025 = pd.concat(dfs)
+# Now combine ALL years into one big table
+df_all = pd.concat(master_dfs)
+df_all.sort_index(inplace=True)
 
-# It is good practice to sort the DataFrame by time if needed.
-df_2025.sort_index(inplace=True)
-
-# Save the complete DataFrame to a CSV file.
-output_file = "data/weather_2024.csv"
-df_2025.to_csv(output_file)
-
-logging.info(f"Combined weather data for 2024 saved to {output_file}")
+# Save the master file
+out_csv_all = "data/weather_2004_2023.csv"
+df_all.to_csv(out_csv_all)
+logging.info(f"All years 2004–2023 combined and saved to {out_csv_all}")

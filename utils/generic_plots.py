@@ -1,223 +1,281 @@
-
 # %%
 import pandas as pd
-import matplotlib.pyplot as plt
-from core.network import create_network
-import networkx as nx
-import matplotlib.pyplot as plt
-import seaborn as sns
 import numpy as np
 import os
+import networkx as nx
+from core.network import create_network
+import plotly.graph_objects as go
+import matplotlib.pyplot as plt
+import seaborn as sns
+from utils.set_plot_style import set_plot_style
+from utils.utils import colors_crest, colors_flare
+
+# Ensure output directory exists
+os.makedirs('plots/generic_plot', exist_ok=True)
+
+# Apply global Plotly style
+set_plot_style()
 
 file_path = "data/raw_data/SS_Monnickendam.csv"
 
 # %%
-# Load data
+# Load data and compute mean load
 df = pd.read_csv(file_path, sep=';', decimal=',', parse_dates=['DATUM_TIJD'])
 df.columns = df.columns.str.lower()
-
-# Sort by time
 df = df.sort_values(by="datum_tijd")
 df["datum_tijd"] = df["datum_tijd"] + pd.DateOffset(years=1)
-
-# Calculate mean load
 mean_load = df["belasting"].mean()
 
-# Plot
-plt.figure(figsize=(12, 5))
+crest_color = colors_crest(1)[0]
+flare_color = colors_flare(1)[0]
 
-# Plot load levels
-plt.plot(df["datum_tijd"], df["belasting"], color='blue', linewidth=0.7, label="Load Level")
-
-# Plot mean load
-plt.axhline(y=mean_load, color='green', linestyle='--', linewidth=1.5, label=f"Mean Load = {mean_load:.2f} kW")
-# Formatting
-plt.xlabel("Date")
-plt.ylabel("Load (kW)")
-plt.title("Load Profile with Mean Load")
-plt.legend(loc="lower left")  # Legend at bottom-left
-plt.xticks(rotation=45)  # Rotate dates for readability
-plt.grid(True)
-
-# Show plot
-plt.show()
-
-# %%
-# Congestion plot
-# Load data
-df = pd.read_csv(file_path, sep=';', decimal=',', parse_dates=['DATUM_TIJD'])
-df.columns = df.columns.str.lower()
-df = df[df["jaar"] == 2030].sort_values(by="datum_tijd")
-
-# Shift dates forward by one year
-df["datum_tijd"] = df["datum_tijd"] + pd.DateOffset(years=7)
-
-# Capacity limit calculation
-capacity_limit = 11.2 * 0.85 * 1000  # Convert MVA to kW
-
-# Count the number of times the load exceeds the capacity
-exceed_count = (df["belasting"] > capacity_limit).sum()
-exceed_hours = exceed_count * 15 / 60  # Convert exceed count to hours
-print(f"Number of times load exceeds capacity: {exceed_count} (equivalent to {exceed_hours:.2f} hours)")
-
-# Plot
-plt.figure(figsize=(12, 5))
-
-# Plot normal load
-plt.plot(df["datum_tijd"], df["belasting"], label="Load Level", color='blue', linewidth=0.7)
-
-# Highlight areas where load exceeds capacity
-above_limit = df["belasting"] > capacity_limit
-plt.plot(df["datum_tijd"][above_limit], df["belasting"][above_limit], color='red', linewidth=0.7, label="Over Capacity")
-
-# Add capacity limit line
-plt.axhline(y=capacity_limit, color='orange', linestyle='--', linewidth=1.5, label=f"Capacity Limit = {capacity_limit:.0f} kW")
-
-# Fix x-axis formatting
-plt.xticks(rotation=45)
-plt.xlabel("Date")
-plt.ylabel("Load (kW)")
-plt.title("Load Profile for SS Monnickendam (2030)")
-
-# Place legend in the bottom-left corner
-plt.legend(loc="lower left")
-
-plt.grid(True)
-plt.show()
+# Plot load profile
+fig = go.Figure()
+fig.add_trace(go.Scatter(
+    x=df["datum_tijd"],
+    y=df["belasting"],
+    mode='lines',
+    line=dict(color=crest_color, width=1),
+    name="Load Level"
+))
+fig.add_trace(go.Scatter(
+    x=[df["datum_tijd"].min(), df["datum_tijd"].max()],
+    y=[mean_load, mean_load],
+    mode='lines',
+    line=dict(color=flare_color, dash='dash', width=1.5),
+    name=f"Mean Load = {mean_load:.2f} kW"
+))
+fig.update_layout(
+    xaxis_title="Date",
+    yaxis_title="Load (kW)",
+    title="Load Profile with Mean Load"
+)
+fig.write_image('plots/generic_plot/load_profile.svg')
+fig.show()
 
 # %%
-# Ensure plot directory exists
-plot_dir = "plots"
-os.makedirs(plot_dir, exist_ok=True)
+# Congestion plot for year 2030
+df2 = pd.read_csv(file_path, sep=';', decimal=',', parse_dates=['DATUM_TIJD'])
+df2.columns = df2.columns.str.lower()
+df2 = df2[df2["jaar"] == 2030].sort_values(by="datum_tijd")
+df2["datum_tijd"] = df2["datum_tijd"] + pd.DateOffset(years=7)
 
-# Load data
-df = pd.read_csv(file_path, sep=';', decimal=',', parse_dates=['DATUM_TIJD'])
-df.columns = df.columns.str.lower()
-df = df[(df["jaar"] >= 2024) & (df["jaar"] <= 2032)].sort_values(by="datum_tijd")
+capacity_limit = 11.2 * 0.85 * 1000  # kW
+above = df2["belasting"] > capacity_limit
+exceed_count = above.sum()
+exceed_hours = exceed_count * 15 / 60
+print(f"Number of times load exceeds capacity: {exceed_count} (≈ {exceed_hours:.2f} hours)")
 
-# Calculate statistics
-capacity_limit = 11.2 * 0.85 * 1000  # Convert MVA to kW
+fig2 = go.Figure()
+# full baseline
+fig2.add_trace(go.Scatter(
+    x=df2["datum_tijd"],
+    y=df2["belasting"],
+    mode='lines',
+    line=dict(color=crest_color, width=1),
+    name="Load Level"
+))
+# red overlay connecting just the overload points
+over_df = df2.loc[above]
+fig2.add_trace(go.Scatter(
+    x=over_df["datum_tijd"],
+    y=over_df["belasting"],
+    mode='lines',
+    line=dict(color='red', width=2),
+    name="Over Capacity"
+))
+# capacity limit line
+fig2.add_trace(go.Scatter(
+    x=[df2["datum_tijd"].min(), df2["datum_tijd"].max()],
+    y=[capacity_limit, capacity_limit],
+    mode='lines',
+    line=dict(color=flare_color, dash='dash', width=1.5),
+    name=f"Capacity Limit = {capacity_limit:.0f} kW"
+))
+fig2.update_layout(
+    xaxis_title="Date",
+    yaxis_title="Load (kW)",
+    title="Load Profile for MRS Monnickendam (2030)"
+)
+fig2.write_image('plots/generic_plot/congestion_2030.svg')
+fig2.show()
 
-# Aggregate congestion hours per month
-df["month"] = df["datum_tijd"].dt.to_period("M")
-df["congestion"] = (df["belasting"] > capacity_limit) * 0.25  # Convert 15-minute intervals to hours
-df_heatmap = df.groupby(["jaar", "month"]).agg({"congestion": "sum"}).reset_index()
-df_heatmap["month"] = df_heatmap["month"].astype(str).str[-2:].astype(int)  # Convert month to integer
+# %%
+# Congestion plot for year 2024
+df3 = pd.read_csv(file_path, sep=';', decimal=',', parse_dates=['DATUM_TIJD'])
+df3.columns = df3.columns.str.lower()
+df3 = df3[df3["jaar"] == 2024].sort_values(by="datum_tijd")
+df3["datum_tijd"] = df3["datum_tijd"] + pd.DateOffset(years=7)
 
-# Pivot for heatmap
-df_pivot = df_heatmap.pivot(index="jaar", columns="month", values="congestion")
+above3 = df3["belasting"] > capacity_limit
+exceed_count3 = above3.sum()
+exceed_hours3 = exceed_count3 * 15 / 60
+print(f"Number of times load exceeds capacity: {exceed_count3} (≈ {exceed_hours3:.2f} hours)")
 
-# Print table for copying
-print("\nCongestion Hours per Month (2024-2032):")
-print(df_pivot.to_string())
-# Plot heatmap
+fig3 = go.Figure()
+# full baseline
+fig3.add_trace(go.Scatter(
+    x=df3["datum_tijd"],
+    y=df3["belasting"],
+    mode='lines',
+    line=dict(color=crest_color, width=1),
+    name="Load Level"
+))
+# red overlay
+over3 = df3.loc[above3]
+fig3.add_trace(go.Scatter(
+    x=over3["datum_tijd"],
+    y=over3["belasting"],
+    mode='lines',
+    line=dict(color='red', width=2),
+    name="Over Capacity"
+))
+# capacity limit
+fig3.add_trace(go.Scatter(
+    x=[df3["datum_tijd"].min(), df3["datum_tijd"].max()],
+    y=[capacity_limit, capacity_limit],
+    mode='lines',
+    line=dict(color=flare_color, dash='dash', width=1.5),
+    name=f"Capacity Limit = {capacity_limit:.0f} kW"
+))
+fig3.update_layout(
+    xaxis_title="Date",
+    yaxis_title="Load (kW)",
+    title="Load Profile for MRS Monnickendam (2024)"
+)
+fig3.write_image('plots/generic_plot/congestion_2024.svg')
+fig3.show()
+
+# %%
+# Heatmap of monthly congestion hours (matplotlib + seaborn)
+df4 = pd.read_csv(file_path, sep=';', decimal=',', parse_dates=['DATUM_TIJD'])
+df4.columns = df4.columns.str.lower()
+df4 = df4[(df4["jaar"] >= 2024) & (df4["jaar"] <= 2030)].sort_values(by="datum_tijd")
+
+heat_df = df4.assign(
+    month=df4["datum_tijd"].dt.to_period("M"),
+    congestion=(df4["belasting"] > capacity_limit) * 0.25
+)
+pivot = heat_df.groupby(["jaar", heat_df["datum_tijd"].dt.month])["congestion"].sum().unstack()
+
 plt.figure(figsize=(12, 6))
-sns.heatmap(df_pivot, cmap="Reds", annot=True, fmt=".1f", linewidths=0.5, cbar_kws={'label': 'Congestion Hours'})
+sns.heatmap(pivot, cmap="Reds", annot=True, fmt=".1f",
+            linewidths=0.5, cbar_kws={'label': 'Congestion Hours'})
 plt.xlabel("Month")
 plt.ylabel("Year")
-plt.title("Monthly Congestion Hours (Load Exceeds Capacity) from 2024 to 2032")
-
-# Save plot to 'plots' directory
-plot_path = os.path.join(plot_dir, "congestion_heatmap.png")
-plt.savefig(plot_path, dpi=300, bbox_inches='tight')
+plt.title("Monthly Congestion Hours (Load Exceeds Capacity) 2024–2030")
+plt.tight_layout()
+plt.savefig('plots/generic_plot/heatmap.svg')
 plt.show()
 
-print(f"Plot saved at: {plot_path}")
-
 # %%
-# congestion times to csv
-# Load data
+# Congestion timestamps to CSV
+df5 = pd.read_csv(file_path, sep=';', decimal=',', parse_dates=['DATUM_TIJD'])
+df5.columns = df5.columns.str.lower()
+df5 = df5[(df5["jaar"] >= 2024) & (df5["jaar"] <= 2032)].copy()
+df5["datum_tijd"] = df5.apply(lambda r: r["datum_tijd"].replace(year=r["jaar"]), axis=1)
+df_cong = df5[df5["belasting"] > capacity_limit]
 
-# Load data
-df = pd.read_csv(file_path, sep=';', decimal=',', parse_dates=['DATUM_TIJD'])
-df.columns = df.columns.str.lower()
-df = df[(df["jaar"] >= 2024) & (df["jaar"] <= 2032)].copy()
-
-# Define capacity limit
-capacity_limit = 11.2 * 0.85 * 1000  # Convert MVA to kW
-
-# Correct the year in 'datum_tijd' using the 'jaar' column
-df["datum_tijd"] = df.apply(lambda row: row["datum_tijd"].replace(year=row["jaar"]), axis=1)
-
-# Sort again by corrected datetime
-df = df.sort_values(by="datum_tijd")
-
-# Filter rows where congestion occurs
-df_congestion = df[df["belasting"] > capacity_limit].copy()
-
-# Print timestamps of congestion
 print("\nExact timestamps of congestion occurrences:")
-print(df_congestion[["jaar", "datum_tijd", "belasting"]].to_string(index=False))
+print(df_cong[['jaar','datum_tijd','belasting']].to_string(index=False))
 
-# Define output file path
-output_csv_path = os.path.join("data", "congestion_timestamps.csv")
-
-# Save to CSV
-df_congestion[["jaar", "datum_tijd", "belasting"]].to_csv(output_csv_path, index=False)
-print(f"Congestion timestamps saved to: {output_csv_path}")
+df_cong[['jaar','datum_tijd','belasting']].to_csv(
+    'plots/generic_plot/congestion_timestamps.csv', index=False
+)
 
 # %%
-
-# %%
-import pandas as pd
-import matplotlib.pyplot as plt
-
-# Filter 2024 congestion data
-df_2024 = df_congestion[df_congestion["jaar"] == 2030].copy()
-
-# Extract hour from datetime
-df_2024["hour"] = df_2024["datum_tijd"].dt.hour
-
-# Count congestion occurrences per hour, ensuring all 24 hours are included
-hourly_congestion = df_2024["hour"].value_counts().sort_index()
-hourly_congestion = hourly_congestion.reindex(range(24), fill_value=0)
-
-# Plot
-plt.figure(figsize=(12, 5))
-plt.bar(hourly_congestion.index, hourly_congestion.values, color="red", alpha=0.8)
-
-# Labels and formatting
-plt.xlabel("Hour of the Day")
-plt.ylabel("Congestion Occurrences")
-plt.title("Congestion Frequency Per Hour in 2030")
-plt.xticks(range(0, 24), [f"{h}:00" for h in range(24)])
-plt.grid(axis="y", linestyle="--", alpha=0.7)
-plt.tight_layout()
-plt.show()
+# Hourly congestion frequency bar charts
+for yr in [2030, 2024]:
+    df_year = df_cong[df_cong['jaar'] == yr]
+    hours = (
+        df_year['datum_tijd']
+        .dt.hour
+        .value_counts()
+        .reindex(range(24), fill_value=0)
+        .sort_index()
+    )
+    fig_hr = go.Figure()
+    fig_hr.add_trace(go.Bar(
+        x=[f"{h}:00" for h in hours.index],
+        y=hours.values,
+        name='Congestion Occurrences',
+        marker_color=flare_color
+    ))
+    fig_hr.update_layout(
+        xaxis_title="Hour of the Day",
+        yaxis_title="Occurrences",
+        title=f"Congestion Frequency Per Hour in {yr}",
+        xaxis_tickangle=45
+    )
+    fig_hr.write_image(f'plots/generic_plot/hourly_congestion_{yr}.svg')
+    fig_hr.show()
 
 
 # %%
-# Shows imbalance market prices
-# Load data (assuming file is saved as CSV)
-df = pd.read_csv("data/settlement_prices.csv", sep=";")
+# Imbalance market prices plots
+df_price = pd.read_csv("data/raw_data/settlement_prices.csv", sep=';')
+df_price['Timeinterval Start Loc'] = pd.to_datetime(df_price['Timeinterval Start Loc'], errors='coerce')
+df_price['Price Dispatch Down'] = pd.to_numeric(df_price['Price Dispatch Down'], errors='coerce')
+df_price['Price Dispatch Up']   = pd.to_numeric(df_price['Price Dispatch Up'], errors='coerce')
 
-# Convert time column and prices to proper formats
-df['Timeinterval Start Loc'] = pd.to_datetime(df['Timeinterval Start Loc'], errors='coerce')
-df['Price Shortage'] = pd.to_numeric(df['Price Shortage'], errors='coerce')
-df['Price Surplus'] = pd.to_numeric(df['Price Surplus'], errors='coerce')
+# Shortage prices
+fig4 = go.Figure()
+fig4.add_trace(go.Scatter(
+    x=df_price['Timeinterval Start Loc'],
+    y=df_price['Price Dispatch Down'],
+    mode='lines',
+    line=dict(color='crimson'),
+    name='Price Dispatch Down'
+))
+fig4.update_layout(
+    title="Shortage Prices Over Time (2024)",
+    xaxis_title="Date",
+    yaxis_title="Price (EUR/MWh)"
+)
+# Save and show
+fig4.write_image('plots/generic_plot/shortage_prices.svg')
+fig4.show()
 
-# Plot 1: Price Shortage
-plt.figure(figsize=(15, 5))
-plt.plot(df['Timeinterval Start Loc'], df['Price Shortage'], color='crimson', label='Price Shortage')
-plt.title("Shortage Prices Over Time (2024)")
-plt.xlabel("Date")
-plt.ylabel("Price (EUR/MWh)")
-plt.legend(loc='lower left')
-plt.grid(True)
-plt.tight_layout()
-plt.show()
-
-# Plot 2: Price Surplus
-plt.figure(figsize=(15, 5))
-plt.plot(df['Timeinterval Start Loc'], df['Price Surplus'], color='royalblue', label='Price Surplus')
-plt.title("Surplus Prices Over Time (2024)")
-plt.xlabel("Date")
-plt.ylabel("Price (EUR/MWh)")
-plt.legend(loc='lower left')
-plt.grid(True)
-plt.tight_layout()
-plt.show()
 # %%
+# Surplus prices
+fig5 = go.Figure()
+fig5.add_trace(go.Scatter(
+    x=df_price['Timeinterval Start Loc'],
+    y=df_price['Price Dispatch Up'],
+    mode='lines',
+    line=dict(color='royalblue'),
+    name='Price Dispatch Up'
+))
+fig5.update_layout(
+    title="Surplus Prices Over Time (2024)",
+    xaxis_title="Date",
+    yaxis_title="Price (EUR/MWh)"
+)
+# Save and show
+fig5.write_image('plots/generic_plot/surplus_prices.svg')
+fig5.show()
 
+# %%
+# Day-Ahead market prices
+df_da = pd.read_csv("data/new_day_ahead.csv", sep=',')
+df_da['datetime'] = pd.to_datetime(df_da['datetime'], errors='coerce')
+df_da['price']    = pd.to_numeric(df_da['price'], errors='coerce')
+
+fig6 = go.Figure()
+fig6.add_trace(go.Scatter(
+    x=df_da['datetime'],
+    y=df_da['price'],
+    mode='lines',
+    line=dict(color='crimson'),
+    name='Day-Ahead Price'
+))
+fig6.update_layout(
+    title="Day-Ahead Market Prices Over Time (2024)",
+    xaxis_title="Date",
+    yaxis_title="Price (EUR/MWh)"
+)
+# Save and show
+fig6.write_image('plots/generic_plot/day_ahead_prices.svg')
+fig6.show()
 
 # %%

@@ -2,10 +2,11 @@ import pandas as pd
 import numpy as np
 from core.network import create_network, extra_bess_link_status
 from core.config_loader import load_config
-from utils.utils import bus_balance
+from utils.utils import bus_balance, household_inflow_balance, battery_behavior, battery_behavior_settlement
 from core.load_week import get_week_range, load_load_levels, load_day_ahead_prices, load_imbalance_prices, load_solar_profile
 from scenarios.load_scenarios import load_scenarios
 from utils.congestion_week import congestion_summary_week
+from utils.utils import calculate_battery_profit
 
 def solve_network(year, week, scenario, energy_tax):
     print(f"Solving network for Year {year}, Week {week}")
@@ -41,14 +42,22 @@ def solve_network(year, week, scenario, energy_tax):
     network.generators_t.p_max_pu.loc[:, "IMBALANCE_Generator"] = charge_mask
     network.generators_t.p_min_pu.loc[:, "negative_IMBALANCE_Generator"] = -discharge_mask
     network.generators_t.p_max_pu.loc[:, "PV_Generator"] = solar_generation
+    
+    # read the boolean from your YAML (default False)
+    network.enforce_time_windows = scenario.get("enforce_time_windows", False)
+    # (optional) if you ever want to override forbidden_windows too:)
+    network.forbidden_windows   = scenario.get("forbidden_windows", [(12,14),(17,19)])  
 
+    # Add marginal costs for net metering
+    mc_hh_ss = scenario["marginal_cost_Household_to_SS"]  
+    network.links.at["Household → MRS",      "marginal_cost"] = mc_hh_ss
     # Apply demand and price data
-    if scenario["household_load"] == 0:
-        network.loads_t.p_set.loc[:, "household_load"] = 0
-    elif scenario["household_load"] == "demand":
-        network.loads_t.p_set.loc[:, "household_load"] = demand
+    if scenario["HouseholdLoad"] == 0:
+        network.loads_t.p_set.loc[:, "HouseholdLoad"] = 0
+    elif scenario["HouseholdLoad"] == "demand":
+        network.loads_t.p_set.loc[:, "HouseholdLoad"] = demand
     else:
-        raise ValueError("Invalid household_load option in scenario")
+        raise ValueError("Invalid HouseholdLoad option in scenario")
     
     network.generators_t.marginal_cost = pd.DataFrame({
         "DAM_Generator": prices,
@@ -58,36 +67,90 @@ def solve_network(year, week, scenario, energy_tax):
     }, index=network.snapshots)
 
     network.optimize(network.snapshots, solver_name="highs", extra_functionality=extra_bess_link_status)
-     #network.optimize.optimize_with_rolling_horizon(
-       # snapshots=network.snapshots,
-       # window=32,
-       # overlap=8,
-      #  solver_name="highs",
-      #  extra_functionality=extra_bess_link_status
-    #)
+    # network.optimize.optimize_with_rolling_horizon(
+    #      snapshots=network.snapshots,
+    #   window=96,
+    #      overlap=0,
+    #      solver_name="highs",
+    #      extra_functionality=extra_bess_link_status
+    #  )
     return network
 
 if __name__ == "__main__":
     year = 2024
-    week = 2 # Change this value to select a different week 
+    week = 4 # Change this value to select a different week 
     
-    scenario_name = "DAM_plus_PV"  # <--- Pas dit aan om ander scenario te kiezen
-
+    # Either set this to a scenario name, or to "ALL" to run every scenario:
+    scenario_to_run = "Imbalance_only"
     scenarios = load_scenarios()
-    scenario = next(s for s in scenarios if s["name"] == scenario_name)
+    # pick one or all
+    if scenario_to_run.upper() == "ALL":
+        scenarios_to_run = scenarios
+    else:
+        scenarios_to_run = [s for s in scenarios if s["name"] == scenario_to_run]
 
-    energy_tax = scenario["energy_tax"]
+    for scenario in scenarios_to_run:
+        scenario_name = scenario["name"]
+        energy_tax = scenario["energy_tax"]
 
-    solved_network = solve_network(year, week,scenario, energy_tax)
+        solved_network = solve_network(year, week, scenario, energy_tax)
 
-    solved_network.stores_t.p.plot()
-    #solved_network.stores_t.p.loc["2024-06-14"].plot()
-    #solved_network.stores_t.p.loc["2024-06-15"].plot()
-    #Optionally, visualize network balances:
-    fig = bus_balance(solved_network, "Household", resample="15 min")
-    fig.show()
-    #
-    fig2 = bus_balance(solved_network, "Electricity_Grid", resample="15 min")
-    fig2.show()
-    fig3 = congestion_summary_week(solved_network, year, week)
-    fig3.show()
+        solved_network.stores_t.p.plot()
+        #solved_network.stores_t.p.loc["2024-06-14"].plot()
+        #solved_network.stores_t.p.loc["2024-06-15"].plot()
+        #Optionally, visualize network balances:
+        fig = bus_balance(solved_network, "Household", resample="15 min")
+        fig.show()
+        #
+        import os
+        PLOT_BASE = "plots/congestion_week"
+        out_dir = os.path.join(PLOT_BASE, str(year), scenario_name, f"week_{week}")
+        os.makedirs(out_dir, exist_ok=True)
+        fig.write_image(os.path.join(out_dir, "bus_balance_household.svg"))
+        fig2 = bus_balance(solved_network, "Electricity_Grid", resample="15 min")
+        fig2.show()
+        fig2.write_image(os.path.join(out_dir, "bus_balance_electricity_grid.svg"))
+        fig3 = congestion_summary_week(solved_network, year, week, scenario_name)
+        fig3.show()
+        fig4 = household_inflow_balance(solved_network, resample="15min")
+        fig4.show()
+        fig4.write_image(os.path.join(out_dir, "household_inflow_balance.svg"))
+
+        fig_batt = battery_behavior(solved_network,resample="15min")
+        fig_batt.show()
+
+        fig_imb = battery_behavior_settlement(solved_network, resample="15min")
+        fig_imb.show()
+        fig_imb.write_image(os.path.join(out_dir, "imbalance_battery_behavior.svg"))
+
+        fig_batt.write_image(os.path.join(out_dir, "battery_behavior.svg"))
+
+        RESULTS_BASE = "results/congestion_week"
+        results_dir = os.path.join(RESULTS_BASE, str(year), scenario_name, f"week_{week}")
+        os.makedirs(results_dir, exist_ok=True)
+        objective_function = solved_network.objective
+        print(f"Objective function value: {objective_function:.5f}")
+        # create a DataFrame and write it out
+        df_obj = pd.DataFrame([{
+            "year": year,
+            "week": week,
+            "scenario": scenario_name,
+            "objective": objective_function
+        }])
+        df_obj.to_csv(os.path.join(results_dir, "objective_function.csv"), index=False)
+
+        # 0) Just to see what time-series attributes you actually have:
+        print(">>> generators_t contains attributes:", list(solved_network.generators_t.keys()))
+
+        # 1) If there *is* a 'p' (dispatch) timeseries, list the active gens:
+        if "p" in solved_network.generators_t.keys():
+            p_gen = solved_network.generators_t["p"]
+
+            # which gens ever ran?
+            active_any = (p_gen > 0).any(axis=0)
+            print("\nGenerators with non-zero dispatch at any time:")
+        # 3) Compute and print battery economics
+        profit_ts, cost, revenue, profit = calculate_battery_profit(solved_network, out_dir)
+        print(f"\nCharging cost:     €{cost:,.2f}")
+        print(f"Discharging rev:   €{revenue:,.2f}")
+        print(f"Total profit:      €{profit:,.2f}")
