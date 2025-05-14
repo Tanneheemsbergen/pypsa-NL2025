@@ -104,30 +104,30 @@ scenario_groups:
     HouseholdLoad: demand
     marginal_cost_Household_to_SS: 0
     sub_scenarios:
-      - name: Trade_100_0
-        dam_share: 1.0
-        imbalance_share: 0.0
-      - name: Trade_90_10
-        dam_share: 0.9
-        imbalance_share: 0.1
-      - name: Trade_80_20
-        dam_share: 0.8
-        imbalance_share: 0.2
-      - name: Trade_70_30
-        dam_share: 0.7
-        imbalance_share: 0.3
-      - name: Trade_60_40
-        dam_share: 0.6
-        imbalance_share: 0.4
-      - name: Trade_50_50
-        dam_share: 0.5
-        imbalance_share: 0.5
-      - name: Trade_40_60
-        dam_share: 0.4
-        imbalance_share: 0.6
-      - name: Trade_30_70
-        dam_share: 0.3
-        imbalance_share: 0.7
+      # - name: Trade_100_0
+      #   dam_share: 1.0
+      #   imbalance_share: 0.0
+      # - name: Trade_90_10
+      #   dam_share: 0.9
+      #   imbalance_share: 0.1
+      # - name: Trade_80_20
+      #   dam_share: 0.8
+      #   imbalance_share: 0.2
+      # - name: Trade_70_30
+      #   dam_share: 0.7
+      #   imbalance_share: 0.3
+      # - name: Trade_60_40
+      #   dam_share: 0.6
+      #   imbalance_share: 0.4
+      # - name: Trade_50_50
+      #   dam_share: 0.5
+      #   imbalance_share: 0.5
+      # - name: Trade_40_60
+      #   dam_share: 0.4
+      #   imbalance_share: 0.6
+      # - name: Trade_30_70
+      #   dam_share: 0.3
+      #   imbalance_share: 0.7
       - name: Trade_20_80
         dam_share: 0.2
         imbalance_share: 0.8
@@ -150,33 +150,33 @@ scenario_groups:
     HouseholdLoad: demand
     marginal_cost_Household_to_SS: 0
     sub_scenarios:
-      - name: Trade_100_0
-        dam_share: 1.0
-        imbalance_share: 0.0
-      - name: Trade_90_10
-        dam_share: 0.9
-        imbalance_share: 0.1
-      - name: Trade_80_20
-        dam_share: 0.8
-        imbalance_share: 0.2
-      - name: Trade_70_30
-        dam_share: 0.7
-        imbalance_share: 0.3
-      - name: Trade_60_40
-        dam_share: 0.6
-        imbalance_share: 0.4
-      - name: Trade_50_50
-        dam_share: 0.5
-        imbalance_share: 0.5
-      - name: Trade_40_60
-        dam_share: 0.4
-        imbalance_share: 0.6
-      - name: Trade_30_70
-        dam_share: 0.3
-        imbalance_share: 0.7
-      - name: Trade_20_80
-        dam_share: 0.2
-        imbalance_share: 0.8
+      # - name: Trade_100_0
+      #   dam_share: 1.0
+      #   imbalance_share: 0.0
+      # - name: Trade_90_10
+      #   dam_share: 0.9
+      #   imbalance_share: 0.1
+      # - name: Trade_80_20
+      #   dam_share: 0.8
+      #   imbalance_share: 0.2
+      # - name: Trade_70_30
+      #   dam_share: 0.7
+      #   imbalance_share: 0.3
+      # - name: Trade_60_40
+      #   dam_share: 0.6
+      #   imbalance_share: 0.4
+      # - name: Trade_50_50
+      #   dam_share: 0.5
+      #   imbalance_share: 0.5
+      # - name: Trade_40_60
+      #   dam_share: 0.4
+      #   imbalance_share: 0.6
+      # - name: Trade_30_70
+      #   dam_share: 0.3
+      #   imbalance_share: 0.7
+      # - name: Trade_20_80
+      #   dam_share: 0.2
+      #   imbalance_share: 0.8
       - name: Trade_10_90
         dam_share: 0.1
         imbalance_share: 0.9
@@ -280,7 +280,7 @@ scenario_groups:
     energy_tax: 0.12286
     enforce_time_windows: true
     generators:
-      DAM_Generator:           true
+      DAM_Generator:           true 
       negative_DAM_Generator:  true
       PV_Generator:            true
       IMBALANCE_Generator:     false
@@ -326,6 +326,7 @@ scenarios:
   - name: "scenario_0.9_0.1"
     dam_share: 0.9
     imbalance_share: 0.1
+    enforce_time_windows: true
     energy_tax: 0.12286
     marginal_cost_Household_to_SS: -0.12286
 

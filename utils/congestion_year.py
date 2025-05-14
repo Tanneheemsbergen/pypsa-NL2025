@@ -413,7 +413,7 @@ def congestion_summary_year(network, year, scenario_name):
         x=calendar.month_abbr[1:], y=mit_counts.values,
         marker_color=mit_col
     ))
-    fig_bar.show()
+    #fig_bar.show()
     fig_bar.write_image(os.path.join(plot_dir, 'barplot_year.svg'))
 
     # 6) time-of-day table (unchanged)
@@ -445,22 +445,22 @@ def congestion_summary_year(network, year, scenario_name):
     title='Time-of-Day Congestion & Mitigation Events',
     height=400
 )
-    fig_tbl.show()
+    #fig_tbl.show()
     fig_tbl.write_image(os.path.join(plot_dir, 'table_timeofday_year.svg'))
 
     # 7) rose & heatmap (unchanged)
     rose_fig    = plot_period_polar(df_new, df_al)
     heatmap_fig = plot_period_heatmap(df_new, df_al, year)
-    rose_fig.show()
-    heatmap_fig.show()
+    #rose_fig.show()
+    #heatmap_fig.show()
     rose_fig.write_image(os.path.join(plot_dir, 'rose_year.svg'))
     heatmap_fig.write_image(os.path.join(plot_dir, 'heatmap_year.svg'))
 
     # 8) split exact-time into two plots
     fig_cong   = plot_congestion_time_of_day_year(df_new, df_al, df_mitigate)
     fig_charge = plot_charging_time_of_day_year(df_charge_al, df_charge_neut)
-    fig_cong.show()
-    fig_charge.show()
+    #fig_cong.show()
+    #fig_charge.show()
     fig_cong  .write_image(os.path.join(plot_dir, 'time_of_day_congestion_year.svg'))
     fig_charge.write_image(os.path.join(plot_dir, 'time_of_day_charging_year.svg'))
 

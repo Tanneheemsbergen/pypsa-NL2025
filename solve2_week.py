@@ -51,8 +51,8 @@ def solve_network(year, week, scenario, energy_tax):
     
     # --- First step: Solve DAM network ---
     DAM_network = copy.deepcopy(base_network)
-    DAM_network.enforce_time_windows = enforce
-    DAM_network.forbidden_windows   = forbidden
+    DAM_network.enforce_time_windows = scenario.get("enforce_time_windows", False)
+    DAM_network.forbidden_windows   = scenario.get("forbidden_windows", [(12,14),(17,19)])
     DAM_network.generators.at["DAM_Generator", "active"] = scenario["generators"]["DAM_Generator"]
     DAM_network.generators.at["negative_DAM_Generator", "active"] = scenario["generators"]["negative_DAM_Generator"]
     DAM_network.generators.at["PV_Generator", "active"] = scenario["generators"]["PV_Generator"]
@@ -85,8 +85,8 @@ def solve_network(year, week, scenario, energy_tax):
      # --- Second step: Solve imbalance network ---
     Onbalans_network = copy.deepcopy(base_network)
 
-    Onbalans_network.enforce_time_windows = enforce
-    Onbalans_network.forbidden_windows   = forbidden
+    Onbalans_network.enforce_time_windows = scenario.get("enforce_time_windows", False)
+    Onbalans_network.forbidden_windows   = scenario.get("forbidden_windows", [(12,14),(17,19)])
     #  Reactivate imbalance generators
     Onbalans_network.generators.at["DAM_Generator", "active"] = False
     Onbalans_network.generators.at["negative_DAM_Generator", "active"] = False
@@ -121,7 +121,7 @@ if __name__ == "__main__":
     year = 2024
     week = 4
     
-    scenario_to_run = "Value Stacking DAM + Imbalance"
+    scenario_to_run = "Value Stacking DAM + Imbalance + Time Constraints"
     # 2) Laad álle scenario's (oude en flattened group-subscenarios)
     scenarios = load_scenarios2("scenarios/2solve_scenarios.yaml")
 
@@ -137,23 +137,23 @@ if __name__ == "__main__":
             # plotten & tonen
             DAM_solve.stores_t.p.plot()
             fig1 = bus_balance(DAM_solve, "Household", resample="15 min")
-            fig1.show()
+            #fig1.show()
             Imbalance_solve.stores_t.p.plot()
             fig2 = bus_balance(Imbalance_solve, "Household", resample="15 min")
-            fig2.show()
+            #fig2.show()
             fig3 = bus_balance(Imbalance_solve, "Electricity_Grid", resample="15 min")
-            fig3.show()
+            #fig3.show()
             fig4 = combined_congestion_summary_week(DAM_solve, Imbalance_solve, year, week, scen["name"])
-            fig4.show()
+            #fig4.show()
             fig_dam_week = congestion_summary_week(
             DAM_solve, year, week, f"{scen['name']}_DAM"
             )
-            fig_dam_week.show()
+            #fig_dam_week.show()
 
             fig_imb_week = congestion_summary_week(
                 Imbalance_solve, year, week, f"{scen['name']}_Imbalance"
             )
-            fig_imb_week.show()
+            #fig_imb_week.show()
             # opslaan
             base = os.path.join("plots", "congestion_week", str(year), scen["name"], f"week_{week}")
             os.makedirs(base, exist_ok=True)
@@ -178,27 +178,27 @@ if __name__ == "__main__":
     #    (will create under results/congestion_week/<year>/<scenario_name>_DAM/week_<week>/…)
         print("→ Generating weekly summary for DAM run…")
         fig_dam = congestion_summary_week(DAM_solve, year, week, f"{scen['name']}_DAM")
-        fig_dam.show()
+        #fig_dam.show()
 
         print("→ Generating weekly summary for Imbalance run…")
         fig_imb = congestion_summary_week(Imbalance_solve, year, week, f"{scen['name']}_Imbalance")
-        fig_imb.show()
+        #fig_imb.show()
         # ——————————————————————————————
 
         # (optional) now your combined summary
         fig4 = combined_congestion_summary_week(DAM_solve, Imbalance_solve, year, week, scen["name"])
-        fig4.show()
+        #fig4.show()
         # plotten & tonen
         DAM_solve.stores_t.p.plot()
         fig1 = bus_balance(DAM_solve, "Household", resample="15 min")
-        fig1.show()
+        #fig1.show()
         Imbalance_solve.stores_t.p.plot()
         fig2 = bus_balance(Imbalance_solve, "Household", resample="15 min")
-        fig2.show()
+        #fig2.show()
         fig3 = bus_balance(Imbalance_solve, "Electricity_Grid", resample="15 min")
-        fig3.show()
+        #fig3.show()
         fig4 = combined_congestion_summary_week(DAM_solve, Imbalance_solve, year, week, scen["name"])
-        fig4.show()
+        #fig4.show()
 
         base = os.path.join("plots", "congestion_week", str(year), scen["name"], f"week_{week}")
         os.makedirs(base, exist_ok=True)

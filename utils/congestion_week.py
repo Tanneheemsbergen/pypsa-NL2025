@@ -482,16 +482,16 @@ def congestion_summary_week(network, year, week, scenario_name):
 
     # rose chart
     rose_fig = plot_period_polar(df_new, df_already)
-    rose_fig.show()
+    #rose_fig.show()
     # heatmap
     heatmap_fig = plot_period_heatmap(df_new, df_already, year, week)
-    heatmap_fig.show()
+    #heatmap_fig.show()
     # exact-time with charging
     fig_cong   = plot_congestion_time_of_day(df_new, df_already, df_mitigate)
     fig_charge = plot_charging_time_of_day(df_charge_al, df_charge_neut)
 
-    fig_cong.show()
-    fig_charge.show()
+    #fig_cong.show()
+    #fig_charge.show()
 
     fig_cong  .write_image(os.path.join(plot_dir, 'time_of_day_congestion.svg'))
     fig_charge.write_image(os.path.join(plot_dir, 'time_of_day_charging.svg'))

@@ -55,8 +55,8 @@ def solve_network(year, scenario, energy_tax):
     
     # --- DAM Network Setup ---
     DAM_network = copy.deepcopy(base_network)
-    DAM_network.enforce_time_windows = enforce
-    DAM_network.forbidden_windows   = forbidden
+    DAM_network.enforce_time_windows = scenario.get("enforce_time_windows", False)
+    DAM_network.forbidden_windows   = scenario.get("forbidden_windows", [(12,14),(17,19)])
     DAM_network.generators.at["DAM_Generator", "active"] = scenario["generators"]["DAM_Generator"]
     DAM_network.generators.at["negative_DAM_Generator", "active"] = scenario["generators"]["negative_DAM_Generator"]
     DAM_network.generators.at["PV_Generator", "active"] = scenario["generators"]["PV_Generator"]
@@ -90,8 +90,8 @@ def solve_network(year, scenario, energy_tax):
     # --- Imbalance Network Setup ---
     Onbalans_network = copy.deepcopy(base_network)
 
-    Onbalans_network.enforce_time_windows = enforce
-    Onbalans_network.forbidden_windows   = forbidden
+    Onbalans_network.enforce_time_windows = scenario.get("enforce_time_windows", False)
+    Onbalans_network.forbidden_windows   = scenario.get("forbidden_windows", [(12,14),(17,19)])
 
     Onbalans_network.generators.at["DAM_Generator", "active"] = False
     Onbalans_network.generators.at["negative_DAM_Generator", "active"] = False
@@ -150,10 +150,10 @@ if __name__ == "__main__":
             DAM_solve.stores_t.p.plot()
             fig_hh   = bus_balance(DAM_solve,      "Household",       resample="15 min")
             fig_hh.write_image(os.path.join(out_dir, "bus_balance_household.svg"))
-            fig_hh.show()
+            #fig_hh.show()
             fig_grid = bus_balance(Imbalance_solve, "Electricity_Grid", resample="15 min")
             fig_grid.write_image(os.path.join(out_dir, "bus_balance_grid.svg"))
-            fig_grid.show()
+            #fig_grid.show()
 
             # 1) write objectives under group_dir/<scenario_name>/
             scenario_dir = os.path.join(group_dir, scenario_name)
@@ -191,14 +191,10 @@ if __name__ == "__main__":
 
         # --- GROUP‐LEVEL SUMMARY CHARTS (once) ---
         # 1) Four bar‐charts across scenarios
-        bar_figs = plot_group_year_summary(year, scenario_to_run, group_members)
-        for key, fig in bar_figs.items():
-            fig.show()
+        plot_group_year_summary(year, scenario_to_run, group_members)
 
         # 2) Four time‐of‐day heatmaps across scenarios
-        heatmap_figs = plot_group_year_events_heatmaps(year, scenario_to_run, group_members)
-        for key, hm in heatmap_figs.items():
-            hm.show()
+        plot_group_year_events_heatmaps(year, scenario_to_run, group_members)
 
     else:
         # --- SINGLE SCENARIO RUN ---
