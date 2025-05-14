@@ -287,35 +287,60 @@ def congestion_summary_year(network, year, scenario_name):
     # 1) load + charging + discharging joined
     load_series  = load_yearly_load(year)
     charging     = get_storage_charging(network)
+    status_charge = network.storage_units_t.status      # 0 when the battery is neither charging nor discharging
+    battery_discharge = get_storage_discharging(network)  
     discharging  = get_storage_discharging(network)
 
-    df = (
-        pd.DataFrame({'load_mw': load_series})
-          .join(charging    .rename('charging_mw'),    how='inner')
-          .join(discharging.rename('discharging_mw'), how='inner')
-          .fillna(0)
-    )
-    df['combined_mw'] = df['load_mw'] + df['charging_mw']
-    df['net_load']    = df['load_mw'] - df['discharging_mw']
+        # 1) assemble the DataFrame
+    df = pd.DataFrame({
+        "load_mw":           load_series,
+        "mrs2hh":            network.links_t.p["MRS → Household"].fillna(0),
+        "hh2mrs":            network.links_t.p["Household → MRS"].fillna(0),
+        "status_charge":     network.storage_units_t.status.fillna(0),
+        "battery_discharge": get_storage_discharging(network).fillna(0),
+    })
 
-
-    # 2) four-way classification
+    # ——————————————————————————
+    # 2) capacity limit
     config    = load_config()
-    cap_limit = config.get('capacity_limit_mw') or (
-                    config.get('capacity_nominal_mw',11.2)
-                  * config.get('capacity_factor',0.85))
-    mask_already        = df['load_mw'] > cap_limit
-    mask_new            = (~mask_already) & (df['combined_mw'] > cap_limit)
-    mask_charge_already = mask_already & (df['charging_mw'] > 0)
-    mask_charge_neut    = (df['charging_mw'] > 0) \
-                         & ~mask_new       \
-                         & ~mask_charge_already
-    mask_mitigate = (
-        mask_already
-        & (df['discharging_mw'] > 0)
-        & (df['net_load'] < cap_limit)
+    cap_limit = config.get("capacity_limit_mw") or (
+                    config["capacity_nominal_mw"] * config["capacity_factor"]
+                )
+
+    # ——————————————————————————
+    # 3) event‐type masks
+
+    # already congested: battery idle AND MRS→HH above the limit
+    mask_already = (
+        (df["status_charge"] == 0)
+        & (df["mrs2hh"] > cap_limit)
     )
 
+    # new congestion: (load under cap) & (MRS→HH above cap)
+    mask_new = (
+        (df["load_mw"] < cap_limit)
+        & (df["mrs2hh"] > cap_limit)
+    )
+
+    # charging during congested: (load > cap) & (MRS→HH > cap) & (extra flow)
+    mask_charge_already = (
+        (df["load_mw"] > cap_limit)
+        & (df["mrs2hh"] > cap_limit)
+        & (df["mrs2hh"] != df["load_mw"])
+    )
+
+    # neutral charging: (load < cap) & (MRS→HH < cap) & (extra flow)
+    mask_charge_neut = (
+        (df["load_mw"] < cap_limit)
+        & (df["mrs2hh"] < cap_limit)
+        & (df["mrs2hh"] != df["load_mw"])
+    )
+
+    # mitigation: grid under cap but discharge pushes it over
+    mask_mitigate = (
+        (df["mrs2hh"] < cap_limit)
+        & ((df["mrs2hh"] + df["battery_discharge"]) > cap_limit)
+    )
     # 3) print totals
     print(f"Total already congested events: {mask_already.sum()}")
     print(f"Total new congestion events: {mask_new.sum()}")
@@ -465,9 +490,34 @@ def congestion_summary_year(network, year, scenario_name):
     fig_charge.write_image(os.path.join(plot_dir, 'time_of_day_charging_year.svg'))
 
     # 9) save CSVs
-    df_new       .to_csv(os.path.join(CSV_BASE, f"{year}_new_congestion.csv"))
-    df_al        .to_csv(os.path.join(CSV_BASE, f"{year}_already_congested.csv"))
+    # (a) full time‐series of charge/discharge behavior
+    df[['charging_mw', 'discharging_mw']].to_csv(
+        os.path.join(csv_dir, 'ts_charge_discharge.csv'),
+        index_label='datetime'
+    )
 
+    # (b) aggregate by time‐of‐day
+    agg = (
+        df[['charging_mw','discharging_mw']]
+          .groupby(df.index.strftime('%H:%M'))
+          .sum()
+          .reset_index()
+    )
+    agg.columns = ['time', 'total_charging_mw', 'total_discharging_mw']
+    agg.to_csv(
+        os.path.join(csv_dir, 'agg_charge_discharge_by_time_of_day.csv'),
+        index=False
+    )
+
+    # (c) existing congestion event CSVs
+    df_new.to_csv(
+        os.path.join(csv_dir, 'new_congestion.csv'),
+        index_label='datetime'
+    )
+    df_al .to_csv(
+        os.path.join(csv_dir, 'already_congested.csv'),
+        index_label='datetime'
+    )
     return {
         'bar'       : fig_bar,
         'table'     : fig_tbl,
@@ -555,7 +605,7 @@ def plot_group_year_summary(year, scenario_group, sub_scenarios):
 
 def plot_group_year_events_heatmaps(year, scenario_group, sub_scenarios):
     import os, pandas as pd, plotly.graph_objects as go
-
+    
     def collect(ev, neutral=False):
         cmap = {}
         for sub in sub_scenarios:

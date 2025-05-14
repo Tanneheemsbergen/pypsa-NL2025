@@ -7,15 +7,15 @@ atlite_cutouts/
 
 Y/
 
-# data/
+data/
 
-# *.csv
+*.csv
 
-#plots/
+plots/
 
 API/
 
-#results/
+results/
 
 tests/
 .ssh/
