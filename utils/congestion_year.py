@@ -478,75 +478,63 @@ def congestion_summary_year(network, year, scenario_name):
     }
 
 def plot_group_year_summary(year, scenario_group, sub_scenarios):
-    """
-    Generates four separate bar charts for each metric over the full year:
-      • Mitigation events
-      • Charging during already congested periods (chg_already)
-      • New congestion events
-      • Neutral charging events
-    Aggregates DAM + Imbalance counts per scenario before plotting.
-    Scenario labels (e.g. 'trade_90_10') become '90/10' on the x-axis.
-    Returns a dict of Plotly figures keyed by metric.
-    Saves each chart as SVG under plots/congestion_year/<year>/<scenario_group>/. 
-    """
     import os, pandas as pd, plotly.graph_objects as go
     from utils.utils import colors_crest
 
-    # 1) Aggregate totals per scenario
     metrics = []
     for sub in sub_scenarios:
         name = sub["name"]
         totals = {"mitigation": 0, "chg_already": 0, "new": 0, "neutral": 0}
+
+        # Loop over DAM en Imbalance subfolders
         for tag in ("DAM", "Imbalance"):
-            base = os.path.join(CSV_BASE, str(year), f"{name}_{tag}")
-            # yearly congestion events
+            base = os.path.join(
+                "results", "congestion_year",
+                str(year), scenario_group,
+                f"{name}_{tag}"
+            )
+
+            # Events
             ev_csv = os.path.join(base, "congestion_event_times_year.csv")
             if os.path.exists(ev_csv):
                 df_ev = pd.read_csv(ev_csv)
                 for ev in ("mitigation", "chg_already", "new"):
                     totals[ev] += df_ev.query("event == @ev")["count"].sum()
-            # yearly neutral charging
+
+            # Neutral charging
             neut_csv = os.path.join(base, "neutral_charging_times_year.csv")
             if os.path.exists(neut_csv):
-                df_ne = pd.read_csv(neut_csv)
-                totals["neutral"] += df_ne["count"].sum()
+                totals["neutral"] += pd.read_csv(neut_csv)["count"].sum()
+
         metrics.append({"scenario": name, **totals})
+
     df = pd.DataFrame(metrics).set_index("scenario")
 
-    # 2) Prepare human‐readable labels: 'trade_90_10' → '90/10'
-    scenario_names = df.index.tolist()
+    # Maak leesbare labels (bv. "90/10")
     labels = []
-    for name in scenario_names:
+    for name in df.index:
         parts = name.split("_")
-        # if last two segments are numeric, show as A/B
         if len(parts) >= 3 and parts[-2].isdigit() and parts[-1].isdigit():
             labels.append(f"{parts[-2]}/{parts[-1]}")
         else:
-            # fallback: everything after first underscore
-            labels.append(name.split("_",1)[-1].replace("_","/"))
+            labels.append(name.split("_",1)[-1].replace("_", "/"))
 
-    # 3) Build bar charts
     figs = {}
-    colors = colors_crest(len(scenario_names))
+    colors = colors_crest(len(df))
     for ev, title in [
         ("mitigation", "Mitigation Events"),
         ("chg_already", "Charging During Congested Periods"),
-        ("new", "New Congestion Events"),
-        ("neutral", "Neutral Charging Events")
+        ("new",        "New Congestion Events"),
+        ("neutral",    "Neutral Charging Events")
     ]:
-        fig = go.Figure()
-        fig.add_trace(go.Bar(
-            x=scenario_names,
-            y=df[ev].values,
-            marker_color=colors,
-            name=title
+        fig = go.Figure(go.Bar(
+            x=df.index, y=df[ev].values, marker_color=colors, name=title
         ))
         fig.update_layout(
             title=f"{title} — {scenario_group} {year}",
             xaxis=dict(
-                title="Scenario",
                 tickmode="array",
-                tickvals=scenario_names,
+                tickvals=df.index.tolist(),
                 ticktext=labels,
                 tickangle=45
             ),
@@ -554,8 +542,10 @@ def plot_group_year_summary(year, scenario_group, sub_scenarios):
             height=500,
             margin=dict(t=80, b=150, l=80, r=50)
         )
-        # save
-        out_dir = os.path.join(PLOT_BASE, str(year), scenario_group)
+
+        out_dir = os.path.join(
+            "plots", "congestion_year", str(year), scenario_group
+        )
         os.makedirs(out_dir, exist_ok=True)
         fig.write_image(os.path.join(out_dir, f"{ev}_year.svg"))
         figs[ev] = fig
@@ -564,17 +554,6 @@ def plot_group_year_summary(year, scenario_group, sub_scenarios):
 
 
 def plot_group_year_events_heatmaps(year, scenario_group, sub_scenarios):
-    """
-    Generates four separate heatmaps for each event type over the full year:
-      • Mitigation
-      • Charging during congested (chg_already)
-      • New congestion
-      • Neutral charging
-    Aggregates DAM + Imbalance per scenario, per time-of-day.
-    Scenario labels (e.g. 'trade_90_10') become '90/10' on the y-axis.
-    Returns a dict of Plotly heatmap figures keyed by event.
-    Saves each as SVG under plots/congestion_year/<year>/<scenario_group>/. 
-    """
     import os, pandas as pd, plotly.graph_objects as go
 
     def collect(ev, neutral=False):
@@ -582,59 +561,74 @@ def plot_group_year_events_heatmaps(year, scenario_group, sub_scenarios):
         for sub in sub_scenarios:
             name = sub["name"]
             total = {}
+
+            # Voor beide tags (_DAM en _Imbalance)
             for tag in ("DAM", "Imbalance"):
-                base = os.path.join(CSV_BASE, str(year), f"{name}_{tag}")
+                base = os.path.join(
+                    "results", "congestion_year",
+                    str(year), scenario_group,
+                    f"{name}_{tag}"
+                )
+
+                # Event‐data
                 if not neutral:
                     ev_csv = os.path.join(base, "congestion_event_times_year.csv")
                     if os.path.exists(ev_csv):
                         df_ev = pd.read_csv(ev_csv)
-                        df_sel = df_ev[df_ev["event"] == ev]
-                        cnts = df_sel.groupby("time")["count"].sum()
-                        for t, c in cnts.items():
+                        sel = df_ev[df_ev["event"] == ev]
+                        for t, c in sel.groupby("time")["count"].sum().items():
                             total[t] = total.get(t, 0) + int(c)
+
+                # Neutral charging
                 else:
                     neut_csv = os.path.join(base, "neutral_charging_times_year.csv")
                     if os.path.exists(neut_csv):
                         df_ne = pd.read_csv(neut_csv)
                         for _, row in df_ne.iterrows():
-                            t, c = row["time"], int(row["count"])
-                            total[t] = total.get(t, 0) + c
+                            total[row["time"]] = total.get(row["time"], 0) + int(row["count"])
+
             if total:
                 cmap[name] = pd.Series(total)
+
         return cmap
 
-    events = [("mitigation", False), ("chg_already", False),
-              ("new", False), ("neutral", True)]
+    events = [
+        ("mitigation", False),
+        ("chg_already", False),
+        ("new", False),
+        ("neutral", True)
+    ]
 
-    # Build human labels for scenarios
-    scenario_names = [sub["name"] for sub in sub_scenarios]
+    # Y-as labels
+    scenario_names = [s["name"] for s in sub_scenarios]
     labels = []
     for name in scenario_names:
         parts = name.split("_")
         if len(parts) >= 3 and parts[-2].isdigit() and parts[-1].isdigit():
             labels.append(f"{parts[-2]}/{parts[-1]}")
         else:
-            labels.append(name.split("_",1)[-1].replace("_","/"))
+            labels.append(name.split("_",1)[-1].replace("_", "/"))
 
     figs = {}
     for ev, neutral in events:
         cmap = collect(ev, neutral)
-        # only times when some scenario has >0
         times = sorted(
-            {t for series in cmap.values() for t in series.index},
+            {t for ser in cmap.values() for t in ser.index},
             key=lambda x: pd.to_datetime(x, format="%H:%M")
         )
         if not times:
             continue
+
         df = pd.DataFrame({
-            name: cmap.get(name, pd.Series(dtype=int)).reindex(times, fill_value=0)
+            name: cmap.get(name, pd.Series(dtype=int))
+                        .reindex(times, fill_value=0)
             for name in scenario_names
         }, index=times)
 
         fig = go.Figure(go.Heatmap(
             z=df.T.values,
             x=df.index,
-            y=labels,  # use human labels here
+            y=labels,
             colorscale="Reds",
             colorbar=dict(title="Count")
         ))
@@ -646,10 +640,12 @@ def plot_group_year_events_heatmaps(year, scenario_group, sub_scenarios):
             height=500,
             margin=dict(t=80, b=100, l=120, r=50)
         )
-        out_dir = os.path.join(PLOT_BASE, str(year), scenario_group)
+
+        out_dir = os.path.join(
+            "plots", "congestion_year", str(year), scenario_group
+        )
         os.makedirs(out_dir, exist_ok=True)
         fig.write_image(os.path.join(out_dir, f"heatmap_{ev}_year.svg"))
         figs[ev] = fig
 
     return figs
-
