@@ -1,7 +1,6 @@
-import pandas as pd
-import os
-import numpy as np
 import copy
+import os
+import pandas as pd
 from core.network import create_network, extra_bess_link_status
 from core.config_loader import load_config
 from utils.utils import bus_balance
