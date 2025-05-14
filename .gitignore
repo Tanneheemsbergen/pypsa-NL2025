@@ -7,9 +7,9 @@ atlite_cutouts/
 
 Y/
 
-data/
+# data/
 
-*.csv
+# *.csv
 
 plots/
 
