@@ -348,6 +348,27 @@ def congestion_summary_year(network, year, scenario_name):
     print(f"Total neutral charging events: {mask_charge_neut.sum()}")
     print(f"Total mitigation events: {mask_mitigate.sum()}")
 
+    # 4) save event‐count summary
+    counts = pd.DataFrame({
+        "event": [
+            "already_congested",
+            "new_congestion",
+            "charging_during_congested",
+            "neutral_charging",
+            "mitigation"
+        ],
+        "count": [
+            mask_already.sum(),
+            mask_new.sum(),
+            mask_charge_already.sum(),
+            mask_charge_neut.sum(),
+            mask_mitigate.sum()
+        ]
+    })
+    counts.to_csv(
+        os.path.join(csv_dir, "event_summary_counts.csv"),
+        index=False
+    )
     # 4) slice
     df_al          = df[mask_already]
     df_new         = df[mask_new]
