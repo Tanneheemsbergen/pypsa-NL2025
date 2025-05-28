@@ -134,9 +134,6 @@
         <mxCell id="kCmbsFq3H0TzNcwKGE3A-6" value="Prices" style="whiteSpace=wrap;html=1;fillColor=#9AC7BF;" parent="1" vertex="1">
           <mxGeometry x="730" y="135" width="90" height="40" as="geometry" />
         </mxCell>
-        <mxCell id="xFL_EBC3-lL4vEzQej9f-2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.25;entryY=1;entryDx=0;entryDy=0;" edge="1" parent="1" source="kCmbsFq3H0TzNcwKGE3A-5" target="kCmbsFq3H0TzNcwKGE3A-5">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
         <mxCell id="xFL_EBC3-lL4vEzQej9f-6" value="" style="endArrow=classic;startArrow=classic;html=1;rounded=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" edge="1" parent="1" source="QJxlkhhkfe_GnA9m2rMw-1" target="KciBcpQ4-X2h3b94fppg-11">
           <mxGeometry width="50" height="50" relative="1" as="geometry">
             <mxPoint x="432.5" y="95" as="sourcePoint" />
