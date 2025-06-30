@@ -27,3 +27,4 @@ testcode/
 .condarc
 .profile
 .wget-hsts
+run/
