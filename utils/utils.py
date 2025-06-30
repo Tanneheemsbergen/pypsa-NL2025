@@ -208,7 +208,8 @@ def bus_balance(network: pypsa.Network, bus: str, unify_color_palette: bool = Fa
         return fig_monthly
 
     #fig.write_image(f"{bus}_bus_balance.svg", format="svg")
-    #fig.write_image("household_bus_balance.svg", format="svg")
+    fig.write_image("household_bus_balance.svg", format="svg")
+    fig.show()
     return fig
 
 def household_inflow_balance(
@@ -557,8 +558,8 @@ def calculate_battery_profit(network, out_dir = None):
     E_discharged  = flows["BESS → Household"].clip(lower=0)
 
     # 5) Net-metering taksen
-    mc_SS_to_HH   = network.links.at["MRS → Household", "marginal_cost"]
-    mc_HH_to_SS   = network.links.at["Household → MRS", "marginal_cost"]
+    mc_SS_to_HH   = network.links.at["MSR → Household", "marginal_cost"]
+    mc_HH_to_SS   = network.links.at["Household → MSR", "marginal_cost"]
 
     # 6) Kosten- & revenue-time series
     cost_ts    = E_charged    * (market_price + mc_SS_to_HH)

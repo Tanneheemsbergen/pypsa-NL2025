@@ -46,3 +46,33 @@ def load_scenarios2(path="scenarios/2solve_scenarios.yaml") -> list[dict]:
             scenarios.append(merged)
 
     return scenarios
+
+def load_scenarios3(path="scenarios/3solve_scenarios.yaml") -> list[dict]:
+    """
+    Laadt een vlakke lijst van alle scenario's uit 2solve_scenarios.yaml,
+    inclusief losse 'scenarios:' én groepen met 'scenario_groups:' + sub_scenarios.
+    Elke sub_scenario krijgt nu ook een 'group' key.
+    """
+    with open(path) as f:
+        data = yaml.safe_load(f) or {}
+
+    # 1) losse scenario's (key 'scenarios:')
+    scenarios = data.get("scenarios", [])
+
+    # 2) scenario-groepen (key 'scenario_groups:')
+    for group in data.get("scenario_groups", []):
+        # defaults uit de groep (excl. name en sub_scenarios)
+        defaults = {
+            k: v for k, v in group.items()
+            if k not in ("name", "sub_scenarios")
+        }
+        for sub in group.get("sub_scenarios", []):
+            merged = {
+                "group": group["name"],   # ← ZO voegen we de groep toe
+                "name": sub["name"],
+                **defaults,
+                **sub
+            }
+            scenarios.append(merged)
+
+    return scenarios

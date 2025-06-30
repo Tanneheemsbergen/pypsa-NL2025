@@ -75,7 +75,7 @@ def detect_already_congested_year(load_series, capacity_limit):
 
 # --- new helper functions at top of congestion_year.py ---
 
-def plot_congestion_time_of_day_year(df_new, df_al, df_mitigate):
+def plot_congestion_time_of_day_year(df_new, df_al, df_mitigate,):
     """
     Bar chart of congestion counts at each specific time (HH:MM):
       - New Congestion
@@ -87,10 +87,15 @@ def plot_congestion_time_of_day_year(df_new, df_al, df_mitigate):
     new_tc = tc(df_new)
     al_tc  = tc(df_al)
     mit_tc = tc(df_mitigate)
+    #cal_tc  = tc(df_charge_al)
 
     times  = sorted(set(new_tc.index) | set(al_tc.index))
     labels = [t.strftime('%H:%M') for t in times]
-
+    tick30 = [
+    lbl
+    for t, lbl in zip(times, labels)
+    if t.minute % 30 == 0
+]
     colors = {
         'already' : colors_flare(1)[0],
         'new'     : colors_crest(1)[0],
@@ -108,6 +113,7 @@ def plot_congestion_time_of_day_year(df_new, df_al, df_mitigate):
         name='New congestion',
         marker_color=colors['new']
     ))
+        
     fig.add_trace(go.Bar(
         x=labels, y=[-mit_tc.get(t,0) for t in times],
         name='Mitigation',
@@ -116,7 +122,13 @@ def plot_congestion_time_of_day_year(df_new, df_al, df_mitigate):
     fig.update_layout(
         barmode='relative',
         title='Exact-Time Congestion & Mitigation',
-        xaxis=dict(title='Time (HH:MM)', tickangle=45),
+         xaxis=dict(
+            title='Time (HH:MM)',
+            tickangle=45,
+            tickmode='array',
+            tickvals=tick30,
+            ticktext=tick30,
+        ),
         yaxis=dict(title='Count (negative = mitigation)'),
         height=500
     )
@@ -127,6 +139,8 @@ def plot_charging_time_of_day_year(df_charge_al, df_charge_neut):
     Bar chart of charging counts at each specific time (HH:MM):
       - Charging during already congested times
       - Neutral charging times
+
+    PLUS a zoomed‐in subplot for 07:30–14:30.
     """
     def tc(df):
         return pd.Series(df.index.time).value_counts().sort_index()
@@ -134,33 +148,92 @@ def plot_charging_time_of_day_year(df_charge_al, df_charge_neut):
     cal_tc  = tc(df_charge_al)
     neut_tc = tc(df_charge_neut)
 
-    times  = sorted(set(cal_tc.index) | set(neut_tc.index))
-    labels = [t.strftime('%H:%M') for t in times]
+    # all times sorted
+    all_times = sorted(set(cal_tc.index) | set(neut_tc.index))
 
-    # second color from each palette
+    windows = [
+        (pd.to_datetime("07:30").time(), pd.to_datetime("07:45").time()),
+        (pd.to_datetime("10:00").time(), pd.to_datetime("14:45").time()),
+    ]
+
+    # pick times within either window
+    zoom_times = [
+        t for t in all_times
+        if any(start <= t <= end for (start, end) in windows)
+    ]
+
+    # string labels
+    all_labels  = [t.strftime("%H:%M") for t in all_times]
+    zoom_labels = [t.strftime("%H:%M") for t in zoom_times]
+
+
+    # colors
     col_charge_al = colors_crest(2)[1]
     col_neutral   = colors_flare(2)[1]
 
-    fig = go.Figure()
-    fig.add_trace(go.Bar(
-        x=labels,
-        y=[cal_tc.get(t, 0) for t in times],
-        name='Charging During Congestid Periods',
-        marker_color=col_charge_al
-    ))
-    fig.add_trace(go.Bar(
-        x=labels,
-        y=[neut_tc.get(t, 0) for t in times],
-        name='Neutral charging',
-        marker_color=col_neutral
-    ))
-    fig.update_layout(
-        barmode='group',
-        title='Yearly Charging by Exact Time',
-        xaxis=dict(title='Time (HH:MM)', tickangle=45),
-        yaxis=dict(title='Count'),
-        height=500
+    # make a 2‐row subplot sharing y‐axis
+    fig = make_subplots(
+        rows=2, cols=1,
+        shared_yaxes=True,
+        vertical_spacing=0.1,
+        # subplot_titles=("Zoom: 07:30–14:30", "Full day")
     )
+
+    # ROW 1: zoomed bars
+    fig.add_trace(
+        go.Bar(
+            x=zoom_labels,
+            y=[cal_tc.get(t, 0) for t in zoom_times],
+            name="Charging During Congested Periods",
+            marker_color=col_charge_al,
+        ),
+        row=1, col=1
+    )
+    fig.add_trace(
+        go.Bar(
+            x=zoom_labels,
+            y=[neut_tc.get(t, 0) for t in zoom_times],
+            name="Neutral charging",
+            marker_color=col_neutral,
+        ),
+        row=1, col=1
+    )
+
+    # ROW 2: full‐day bars
+    fig.add_trace(
+        go.Bar(
+            x=all_labels,
+            y=[cal_tc.get(t, 0) for t in all_times],
+            showlegend=False,  # legend once is enough
+            marker_color=col_charge_al,
+        ),
+        row=2, col=1
+    )
+    fig.add_trace(
+        go.Bar(
+            x=all_labels,
+            y=[neut_tc.get(t, 0) for t in all_times],
+            showlegend=False,
+            marker_color=col_neutral,
+        ),
+        row=2, col=1
+    )
+
+    # layout tweaks
+    fig.update_layout(
+        height=700,
+        barmode="group",
+        title_text="Yearly Charging by Exact Time",
+    )
+
+    # x‐axes
+    fig.update_xaxes(row=1, col=1, tickangle=45, title_text="")
+    fig.update_xaxes(row=2, col=1, tickangle=45, title_text="Time (HH:MM)")
+
+    # y‐axis (shared)
+    fig.update_yaxes(row=1, col=1, title_text="Count")
+    # row=2 shares so no need to re‐label
+
     return fig
 
 def plot_period_polar(new_df, al_df):
@@ -272,10 +345,7 @@ def plot_exact_time_counts(new_df, al_df):
     )
     return fig
 
-
-# --- replace the body of congestion_summary_year(...) in congestion_year.py ---
-
-def congestion_summary_year(network, year, scenario_name):
+def congestion_summary_year(network, year, scenario_name, forced_flow_to_house: pd.Series = None):
     """
     Yearly summary: bar chart + table + rose + heatmap + split exact-time.
     """
@@ -286,61 +356,184 @@ def congestion_summary_year(network, year, scenario_name):
 
     # 1) load + charging + discharging joined
     load_series  = load_yearly_load(year)
-    charging     = get_storage_charging(network)
-    status_charge = network.storage_units_t.status      # 0 when the battery is neither charging nor discharging
-    battery_discharge = get_storage_discharging(network)  
-    discharging  = get_storage_discharging(network)
+    # get your real charge/discharge time series
+    charging_mw   = get_storage_charging(network).fillna(0)
+    discharging_mw = get_storage_discharging(network).fillna(0)
 
-        # 1) assemble the DataFrame
-    df = pd.DataFrame({
-        "load_mw":           load_series,
-        "mrs2hh":            network.links_t.p["MRS → Household"].fillna(0),
-        "hh2mrs":            network.links_t.p["Household → MRS"].fillna(0),
-        "status_charge":     network.storage_units_t.status.fillna(0),
-        "battery_discharge": get_storage_discharging(network).fillna(0),
-    })
+    # 2) start with an empty DataFrame
+    df = pd.DataFrame(index=load_series.index)
 
+    # 3) always add these columns
+    df["load_mw"]        = load_series
+    df["charging_mw"]    = charging_mw
+    df["discharging_mw"] = discharging_mw
+
+    # 1) add a solar generation column if there is a PV link
+    if "PV → Household" in network.links_t.p0.columns:
+        # p0 is positive from bus0 (PV) → bus1 (Household)
+        df["solar_gen"] = network.links_t.p0["PV → Household"].fillna(0)
+    else:
+        # no PV in this scenario
+        df["solar_gen"] = 0.0
+
+    # 2) a helper flag: True only when there's zero PV
+    df["pv_zero"] = df["solar_gen"] == 0.0
+
+    is_imbalance = scenario_name.endswith("_Imbalance")
+    if is_imbalance:
+        # 5a) for Imbalance: load the DAM’s baseline CSV instead of recomputing
+        dam_name     = scenario_name.replace("_Imbalance", "_DAM")
+        dam_csv_dir  = os.path.join(CSV_BASE, str(year), dam_name)
+        dam_base_csv = os.path.join(dam_csv_dir, "congestion_baseline.csv")
+        if not os.path.exists(dam_base_csv):
+            raise FileNotFoundError(f"DAM baseline not found: {dam_base_csv}")
+        base_df = pd.read_csv(
+            dam_base_csv, parse_dates=['datetime'], index_col='datetime'
+        )
+        df["flow_to_house"]  = base_df["flow_to_house"]
+        m2h_imb = network.links_t.p0["MSR → Household"].fillna(0)
+        h2m_imb = network.links_t.p0["Household → MSR"].fillna(0)
+        df["flow_to_house_netto"] = (m2h_imb - h2m_imb).clip(lower=0)
+        df["flow_to_house_imb"] = df["flow_to_house"] + df["flow_to_house_netto"]
+        df["net_house_load"] = base_df["net_house_load"]
+        baseline = df[["load_mw", "flow_to_house_imb", "net_house_load"]].copy()
+        # bring the datetime index into a column
+        baseline["datetime"] = baseline.index
+        # reorder so datetime is first
+        baseline = baseline[["datetime", "load_mw", "flow_to_house_imb", "net_house_load"]]
+        baseline.to_csv(
+            os.path.join(csv_dir, "congestion_baseline.csv"),
+            index=False
+        )
+    else:
+        # 5b) for DAM: compute as usual, then save baseline for the Imbalance run
+        #    5b.i) actual flow from MSR→Household
+        m2h = network.links_t.p0["MSR → Household"].fillna(0)
+        h2m = network.links_t.p0["Household → MSR"].fillna(0)
+        df["flow_to_house"] = (m2h - h2m).clip(lower=0)
+
+        #    5b.ii) net load including battery charge/discharge efficiency
+        df["net_house_load"] = (
+            df["flow_to_house"]
+            - (df["charging_mw"] / 91) * 100
+            + df["discharging_mw"] * 0.91
+        )
+
+        #    5b.iii) save for the Imbalance call
+        #    5b.iii) save for the Imbalance call, including datetime & load_mw
+        baseline = df[["load_mw", "flow_to_house", "net_house_load"]].copy()
+        # bring the datetime index into a column
+        baseline["datetime"] = baseline.index
+        # reorder so datetime is first
+        baseline = baseline[["datetime", "load_mw", "flow_to_house", "net_house_load"]]
+        baseline.to_csv(
+            os.path.join(csv_dir, "congestion_baseline.csv"),
+            index=False
+        )
+    # df["net_mrs2hh"] = df["mrs2hh"] - df["hh2mrs"]
+    # # use only the positive part for your congestion logic
+    # df["flow_to_house"] = df["net_mrs2hh"].clip(lower=0)
+
+    # and (optionally) the negative part for charging back
     # ——————————————————————————
     # 2) capacity limit
     config    = load_config()
-    cap_limit = config.get("capacity_limit_mw") or (
-                    config["capacity_nominal_mw"] * config["capacity_factor"]
-                )
-
+    cap_limit = 11.2 * 0.85
+    #cap_limit = 39.6 *0.85
+    # cap_limit = config.get('capacity_limit_mw') or (
+    #                 config.get('capacity_nominal_mw',11.2)
+    #               * config.get('capacity_factor',0.85))
+      # battery is idle whenever it’s neither charging nor discharging
+    df["status_idle"] = (
+        (df["charging_mw"]    == 0) &
+        (df["discharging_mw"]  == 0)
+    )
     # ——————————————————————————
     # 3) event‐type masks
 
-    # already congested: battery idle AND MRS→HH above the limit
-    mask_already = (
-        (df["status_charge"] == 0)
-        & (df["mrs2hh"] > cap_limit)
-    )
+    # already congested: battery idle AND MSR→HH above the limit
+    #already congested: load from group-level file if present, else compute & save
+    # scenario_name is like "MyGroup/Trade_100_0_DAM" → split off the group
+    group, _, _ = scenario_name.partition(os.sep)
+    group_csv_dir  = os.path.join(CSV_BASE, str(year), group)
+    group_csv_file = os.path.join(group_csv_dir, 'already_congested.csv')
+    if os.path.exists(group_csv_file):
+        # load existing group-level already-congested timestamps
+        grp_df = pd.read_csv(group_csv_file, parse_dates=['datetime'], index_col='datetime')
+        mask_already = df.index.isin(grp_df.index)
+    else:
+        # first run: compute and save into group folder
+        mask_already = df["net_house_load"] > cap_limit
+        os.makedirs(group_csv_dir, exist_ok=True)
+        df[mask_already].to_csv(group_csv_file, index_label='datetime')
 
-    # new congestion: (load under cap) & (MRS→HH above cap)
-    mask_new = (
-        (df["load_mw"] < cap_limit)
-        & (df["mrs2hh"] > cap_limit)
-    )
+    if is_imbalance:
+        # Imbalance: count hours where import > cap, but after charging it would be under cap
+        mask_new = (
+            (df["load_mw"]           < cap_limit)
+          & (df["flow_to_house_imb"]    > cap_limit)
+          & ((df["flow_to_house_imb"] - df["charging_mw"]) < cap_limit)
+          & (df["charging_mw"]      != 0.0)
+        )
+    else:
+        # DAM: any hour where import pushes load over cap while charging
+        mask_new = (
+            (df["load_mw"]           < cap_limit)
+          & (df["flow_to_house"]    > cap_limit)
+          & (df["charging_mw"]      != 0.0)
+        )
 
-    # charging during congested: (load > cap) & (MRS→HH > cap) & (extra flow)
-    mask_charge_already = (
+    # charging during congested: (load > cap) & (MSR→HH > cap) & (extra flow)
+    if is_imbalance:
+        # Imbalance: count hours where import > cap, but after charging it would be under cap
+        mask_charge_already = (
         (df["load_mw"] > cap_limit)
-        & (df["mrs2hh"] > cap_limit)
-        & (df["mrs2hh"] != df["load_mw"])
+        & (df["flow_to_house_imb"] > cap_limit)
+        & (df["flow_to_house_imb"] != df["load_mw"])
+        & (df["charging_mw"]    != 0.0) 
+        #&  df["pv_zero"]
+    )
+    else:
+        # DAM: any hour where import pushes load over cap while charging
+       mask_charge_already = (
+        (df["load_mw"] > cap_limit)
+        & (df["flow_to_house"] > cap_limit)
+        & (df["flow_to_house"] != df["load_mw"])
+        & (df["charging_mw"]    != 0.0) 
+        #&  df["pv_zero"]
     )
 
-    # neutral charging: (load < cap) & (MRS→HH < cap) & (extra flow)
-    mask_charge_neut = (
+    # charging during congested: (load > cap) & (MSR→HH > cap) & (extra flow)
+    if is_imbalance:
+        # neutral charging: (load < cap) & (MSR→HH < cap) & (extra flow)
+        mask_charge_neut = (
         (df["load_mw"] < cap_limit)
-        & (df["mrs2hh"] < cap_limit)
-        & (df["mrs2hh"] != df["load_mw"])
+        & (df["flow_to_house_imb"] < cap_limit)
+        & (df["flow_to_house_imb"] != df["load_mw"])
+        & (df["charging_mw"]    != 0.0)
+        #&  df["pv_zero"]
     )
-
-    # mitigation: grid under cap but discharge pushes it over
-    mask_mitigate = (
-        (df["mrs2hh"] < cap_limit)
-        & ((df["mrs2hh"] + df["battery_discharge"]) > cap_limit)
+    else:
+        # neutral charging:  (load < cap) & (MSR→HH < cap) & (extra flow)
+        mask_charge_neut = (
+        (df["load_mw"] < cap_limit)
+        & (df["flow_to_house"] < cap_limit)
+        & (df["flow_to_house"] != df["load_mw"])
+        & (df["charging_mw"]    != 0.0)
+        #&  df["pv_zero"]
     )
+      # charging during congested: (load > cap) & (MSR→HH > cap) & (extra flow)
+    if is_imbalance:
+        # mitigation: grid under cap but discharge pushes it over
+        mask_mitigate = ((df["flow_to_house_imb"] < cap_limit)
+        & ((df["flow_to_house_imb"] + (df["discharging_mw"]*0.91)) > cap_limit)
+    )
+    else:
+        # mitigation: grid under cap but discharge pushes it over
+        mask_mitigate = (        (df["flow_to_house"] < cap_limit)
+        & ((df["flow_to_house"] + (df["discharging_mw"]*0.91)) > cap_limit)
+    )
+    
     # 3) print totals
     print(f"Total already congested events: {mask_already.sum()}")
     print(f"Total new congestion events: {mask_new.sum()}")
@@ -535,10 +728,10 @@ def congestion_summary_year(network, year, scenario_name):
         os.path.join(csv_dir, 'new_congestion.csv'),
         index_label='datetime'
     )
-    df_al .to_csv(
-        os.path.join(csv_dir, 'already_congested.csv'),
-        index_label='datetime'
-    )
+    # df_al .to_csv(
+    #     os.path.join(csv_dir, 'already_congested.csv'),
+    #     index_label='datetime'
+    # )
     return {
         'bar'       : fig_bar,
         'table'     : fig_tbl,
@@ -626,41 +819,37 @@ def plot_group_year_summary(year, scenario_group, sub_scenarios):
 
 def plot_group_year_events_heatmaps(year, scenario_group, sub_scenarios):
     import os, pandas as pd, plotly.graph_objects as go
-    
+    from utils.utils import colors_flare
+
+    # mitigation uses a custom flare color; others will use the built-in Reds scale
+    mit_col = colors_flare(3)[2]
+
     def collect(ev, neutral=False):
         cmap = {}
         for sub in sub_scenarios:
             name = sub["name"]
             total = {}
-
-            # Voor beide tags (_DAM en _Imbalance)
             for tag in ("DAM", "Imbalance"):
                 base = os.path.join(
                     "results", "congestion_year",
                     str(year), scenario_group,
                     f"{name}_{tag}"
                 )
-
-                # Event‐data
                 if not neutral:
                     ev_csv = os.path.join(base, "congestion_event_times_year.csv")
                     if os.path.exists(ev_csv):
                         df_ev = pd.read_csv(ev_csv)
-                        sel = df_ev[df_ev["event"] == ev]
+                        sel   = df_ev[df_ev["event"] == ev]
                         for t, c in sel.groupby("time")["count"].sum().items():
                             total[t] = total.get(t, 0) + int(c)
-
-                # Neutral charging
                 else:
                     neut_csv = os.path.join(base, "neutral_charging_times_year.csv")
                     if os.path.exists(neut_csv):
                         df_ne = pd.read_csv(neut_csv)
                         for _, row in df_ne.iterrows():
                             total[row["time"]] = total.get(row["time"], 0) + int(row["count"])
-
             if total:
                 cmap[name] = pd.Series(total)
-
         return cmap
 
     events = [
@@ -670,7 +859,7 @@ def plot_group_year_events_heatmaps(year, scenario_group, sub_scenarios):
         ("neutral", True)
     ]
 
-    # Y-as labels
+    # Y-axis labels
     scenario_names = [s["name"] for s in sub_scenarios]
     labels = []
     for name in scenario_names:
@@ -678,7 +867,7 @@ def plot_group_year_events_heatmaps(year, scenario_group, sub_scenarios):
         if len(parts) >= 3 and parts[-2].isdigit() and parts[-1].isdigit():
             labels.append(f"{parts[-2]}/{parts[-1]}")
         else:
-            labels.append(name.split("_",1)[-1].replace("_", "/"))
+            labels.append(name.split("_",1)[-1].replace("_","/"))
 
     figs = {}
     for ev, neutral in events:
@@ -692,15 +881,21 @@ def plot_group_year_events_heatmaps(year, scenario_group, sub_scenarios):
 
         df = pd.DataFrame({
             name: cmap.get(name, pd.Series(dtype=int))
-                        .reindex(times, fill_value=0)
+                         .reindex(times, fill_value=0)
             for name in scenario_names
         }, index=times)
+
+        # choose color scale per event
+        if ev == "mitigation":
+            colorscale = [[0, 'white'], [1, mit_col]]
+        else:
+            colorscale = 'Reds'
 
         fig = go.Figure(go.Heatmap(
             z=df.T.values,
             x=df.index,
             y=labels,
-            colorscale="Reds",
+            colorscale=colorscale,
             colorbar=dict(title="Count")
         ))
         fig.update_layout(

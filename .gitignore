@@ -19,3 +19,11 @@ results/
 
 tests/
 .ssh/
+testcode/
+.bash_history
+.bash_logout
+.bashrc
+.cloud-locale-test.skip
+.condarc
+.profile
+.wget-hsts

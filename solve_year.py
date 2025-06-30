@@ -56,7 +56,7 @@ def solve_network(year, scenario, energy_tax):
     
     # Add marginal costs for net metering
     mc_hh_ss = scenario["marginal_cost_Household_to_SS"] 
-    network.links.at["Household → MRS",      "marginal_cost"] = mc_hh_ss
+    network.links.at["Household → MSR",      "marginal_cost"] = mc_hh_ss
     # Set demand and marginal cost from prices on the network
     if scenario["HouseholdLoad"] == 0:
         network.loads_t.p_set.loc[:, "HouseholdLoad"] = 0
@@ -72,14 +72,14 @@ def solve_network(year, scenario, energy_tax):
         "negative_IMBALANCE_Generator": discharge_prices
     }, index=network.snapshots)
     
-    network.optimize(network.snapshots, solver_name="highs", extra_functionality=extra_bess_link_status)
-    # network.optimize.optimize_with_rolling_horizon(
-    #      snapshots=network.snapshots,
-    #     window=192,
-    #      overlap=96,
-    #      solver_name="highs",
-    #      extra_functionality=extra_bess_link_status
-    #  )
+    #network.optimize(network.snapshots, solver_name="highs", extra_functionality=extra_bess_link_status)
+    network.optimize.optimize_with_rolling_horizon(
+         snapshots=network.snapshots,
+        window=48,
+         overlap=24,
+         solver_name="highs",
+         extra_functionality=extra_bess_link_status
+     )
     return network
 
 if __name__ == "__main__":

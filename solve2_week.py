@@ -16,11 +16,11 @@ def solve_network(year, week, scenario, energy_tax):
     paths = config["paths"]
 
     load_path = paths["load"]
-    day_ahead_prices_path = paths["day_ahead_prices"]
+    #day_ahead_prices_path = paths["day_ahead_prices"]
     imbalance_prices_path = paths["imbalance_prices"]
     solar_profile_path = paths["solar_profile"]
     battery_specs_path = paths["battery_specs"]
-
+    day_ahead_prices_path = paths["day_ahead_prices"]
     # Load input data for the specified week
     demand = load_load_levels(load_path, year, week)
     prices = load_day_ahead_prices(day_ahead_prices_path, year, week)
@@ -40,6 +40,24 @@ def solve_network(year, week, scenario, energy_tax):
     # read the boolean from your YAML (default False)
     enforce = scenario.get("enforce_time_windows", False)
     forbidden = scenario.get("forbidden_windows", [(12,14),(17,19)])
+
+    # —— new: scale battery specs by a user-supplied multiplier ——
+    # (capacity_mwh and both charge/discharge power)
+    # apply per-scenario battery sizing
+    # pm = scenario.get("power_mult", 1.0)
+
+    # # scale the power ratings
+    # base_network.links.loc["Household → BESS", "p_nom"] *= pm
+    # base_network.links.loc["BESS → Household", "p_nom"] *= pm
+
+    # # scale the energy capacity by the same factor
+    # base_network.stores.loc["BESS", "e_nom"] *= pm
+
+    x = scenario.get("pv_cap", 1.0)
+
+    # scale the power ratings
+    base_network.generators.loc["PV_Generator", "p_nom"] *= x
+
     
     base_network.generators_t.marginal_cost = pd.DataFrame({
         "DAM_Generator": prices,
@@ -59,6 +77,7 @@ def solve_network(year, week, scenario, energy_tax):
     DAM_network.generators.at["IMBALANCE_Generator", "active"] = scenario["generators"]["IMBALANCE_Generator"]
     DAM_network.generators.at["negative_IMBALANCE_Generator", "active"] = scenario["generators"]["negative_IMBALANCE_Generator"]
     
+    
     # Apply demand and day-ahead price data to the base network
     if scenario.get("HouseholdLoad", "demand") == 0:
         DAM_network.loads_t.p_set.loc[:, "HouseholdLoad"] = 0
@@ -66,7 +85,7 @@ def solve_network(year, week, scenario, energy_tax):
         DAM_network.loads_t.p_set.loc[:, "HouseholdLoad"] = demand
     # Add marginal costs for net metering
     mc_hh_ss = scenario["marginal_cost_Household_to_SS"] 
-    DAM_network.links.at["Household → MRS",      "marginal_cost"] = mc_hh_ss
+    DAM_network.links.at["Household → MSR",      "marginal_cost"] = mc_hh_ss
     #  Only include marginal costs for DAM generator
     DAM_network.generators_t.marginal_cost = pd.DataFrame({
         "DAM_Generator": prices,
@@ -80,7 +99,7 @@ def solve_network(year, week, scenario, energy_tax):
     DAM_network.generators_t.p_max_pu.loc[:, "PV_Generator"] = solar_generation
     
     print("Solving DA network...")
-    DAM_network.optimize(DAM_network.snapshots, solver_name="highs")
+    DAM_network.optimize(DAM_network.snapshots, solver_name="xpress", extra_functionality=extra_bess_link_status)
 
      # --- Second step: Solve imbalance network ---
     Onbalans_network = copy.deepcopy(base_network)
@@ -113,18 +132,18 @@ def solve_network(year, week, scenario, energy_tax):
     Onbalans_network.generators_t.p_set["DAM_Generator"] = DAM_network.generators_t.p["DAM_Generator"]
 
     print("Solving imbalance network...")
-    Onbalans_network.optimize(Onbalans_network.snapshots, solver_name="highs", extra_functionality=extra_bess_link_status)
+    Onbalans_network.optimize(Onbalans_network.snapshots, solver_name="xpress", extra_functionality=extra_bess_link_status)
     
     return DAM_network, Onbalans_network
 
 if __name__ == "__main__":
-    year = 2024
-    week = 4
+    year = 2016
+    week = 25
     
-    scenario_to_run = "Value Stacking DAM + Imbalance + Time Constraints"
+    scenario_to_run = "Value Stacking DAM + Imbalance + PV"
     # 2) Laad álle scenario's (oude en flattened group-subscenarios)
     scenarios = load_scenarios2("scenarios/2solve_scenarios.yaml")
-
+    
     # 3a) Kijk of dit een groep is door te filteren op de extra key "group"
     group_members = [s for s in scenarios if s.get("group") == scenario_to_run]
 

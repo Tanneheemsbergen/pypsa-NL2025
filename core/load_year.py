@@ -52,6 +52,24 @@ def load_day_ahead_prices(filepath, year):
     # Return the 'price' time series directly
     return df_year["price"]
 
+def load_day_ahead_prices_ToU(filepath, year):
+    """
+    Load day-ahead electricity prices for the given year from CSV file.
+    Assumes the CSV has a datetime index and a column "price".
+    Returns a pandas Series indexed by datetime.
+    """
+    df = pd.read_csv(filepath, parse_dates=True, index_col=0)
+    print(f"Loaded {len(df)} rows from day-ahead prices file {filepath}")
+
+    start, end = get_year_range(year)
+    df_year = df[(df.index >= start) & (df.index < end)].copy()
+
+    # Debug: first and last rows
+    print(f"First 5 day-ahead prices for year {year}:\n", df_year.head(5))
+    print(f"Last 5 day-ahead prices for year {year}:\n", df_year.tail(5))
+
+    # Return the 'price' time series directly
+    return df_year["price"]
 
 def load_imbalance_prices(filepath, year):
     """

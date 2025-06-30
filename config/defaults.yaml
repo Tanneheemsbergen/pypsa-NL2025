@@ -1,6 +1,10 @@
 paths:
   load: data/new_SS_Monnickendam.csv
+  #load: data/OS_Zaandijk_profile_2015_2024.csv
+  #load: data/OS_Purmerend_Kwadijkerkoogweg_profile_2015_2024.csv
   day_ahead_prices: data/new_day_ahead.csv
+  day_ahead_prices_ToU: data/new_day_ahead_price_tou_rounded.csv
   imbalance_prices: data/new_settlement_prices.csv
+  #imbalance_prices: data/new_settlement_prices_tou_rounded.csv
   solar_profile: data/solar_generation_profile_2024_15min.csv
   battery_specs: config/battery_specs.yaml

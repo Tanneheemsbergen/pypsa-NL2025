@@ -50,7 +50,7 @@ def solve_network(year, week, scenario, energy_tax):
 
     # Add marginal costs for net metering
     mc_hh_ss = scenario["marginal_cost_Household_to_SS"]  
-    network.links.at["Household → MRS",      "marginal_cost"] = mc_hh_ss
+    network.links.at["Household → MSR",      "marginal_cost"] = mc_hh_ss
     # Apply demand and price data
     if scenario["HouseholdLoad"] == 0:
         network.loads_t.p_set.loc[:, "HouseholdLoad"] = 0
@@ -66,14 +66,14 @@ def solve_network(year, week, scenario, energy_tax):
         "negative_IMBALANCE_Generator": discharge_prices
     }, index=network.snapshots)
 
-    network.optimize(network.snapshots, solver_name="highs", extra_functionality=extra_bess_link_status)
-    # network.optimize.optimize_with_rolling_horizon(
-    #      snapshots=network.snapshots,
-    #   window=96,
-    #      overlap=0,
-    #      solver_name="highs",
-    #      extra_functionality=extra_bess_link_status
-    #  )
+    #network.optimize(network.snapshots, solver_name="highs", extra_functionality=extra_bess_link_status)
+    network.optimize.optimize_with_rolling_horizon(
+         snapshots=network.snapshots,
+        window=48,
+         overlap=24,
+         solver_name="highs",
+         extra_functionality=extra_bess_link_status
+     )
     return network
 
 if __name__ == "__main__":
@@ -81,10 +81,10 @@ if __name__ == "__main__":
     week = 4 # Change this value to select a different week 
     
     # Either set this to a scenario name, or to "ALL" to run every scenario:
-    scenario_to_run = "Imbalance_only"
+    scenario_to_run = ""
     scenarios = load_scenarios()
     # pick one or all
-    if scenario_to_run.upper() == "ALL":
+    if scenario_to_run.upper() == "DAM_plus_PV":
         scenarios_to_run = scenarios
     else:
         scenarios_to_run = [s for s in scenarios if s["name"] == scenario_to_run]

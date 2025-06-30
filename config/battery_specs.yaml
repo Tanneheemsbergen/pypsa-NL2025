@@ -1,10 +1,25 @@
+# capacity_mwh: 6.4
+# charge_efficiency: 0.91
+
+# charge_power_mw: 1.6
+# discharge_efficiency: 0.91
+# discharge_power_mw: 1.6
+# initial_soc_mwh: 0
+# standing_loss: 0.001
+
+Monnickendam:
 capacity_mwh: 3.3156
 charge_efficiency: 0.91
+
 charge_power_mw: 0.8289
 discharge_efficiency: 0.91
 discharge_power_mw: 0.8289
 initial_soc_mwh: 0
 standing_loss: 0.001
+#2030
+# capacity_mwh: 7.29372
+# charge_power_mw: 1.7366
+# discharge_power_mw: 1.7366
 
 pv:
   # Calculation explanation:
@@ -13,10 +28,18 @@ pv:
   # Total estimated solar panels = 3276 * 7.35 ≈ 24,078
   # Assuming each panel is 0.4 kW (400 W), total capacity = 24,078 * 0.4 = 9631.2 kW = 9.6312 MW
 
-  p_nom: 9.6312  # Updated from calculation
+  p_nom: 9.6312 # Updated from calculation
   amount_of_solar_panels: 24078  # Estimated total solar panels in Monnickendam
   power_per_panel_kw: 0.4        # Assumed power of a single panel
 
-  tilt: 30                       # Tilt angle in degrees
-  azimuth: 180                   # Orientation (south-facing)
-  performance_ratio: 0.8
+  # pv_2030_projection:
+  # national_installed_capacity_gw:
+  #   - 27
+  # monnickendam_households_2030: 3418  # Geschaald aantal huishoudens (4.34% groei t.o.v. 3276 in 2024)
+  # national_households_2030: 8660000
+  # share_monnickendam: 0.0003947
+  # p_nom: 10.65
+
+  # tilt: 30                       # Tilt angle in degrees
+  # azimuth: 180                   # Orientation (south-facing)
+  # performance_ratio: 0.8

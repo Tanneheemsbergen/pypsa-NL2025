@@ -142,17 +142,17 @@ def process_settlement_prices(input_path, output_path):
 
 if __name__ == "__main__":
     # Process day-ahead prices
-    day_ahead_input = "data/raw_data/day_ahead.csv"
-    day_ahead_output = "data/new_day_ahead.csv"
-    year = 2024  # Set the desired year for the day-ahead prices
+    day_ahead_input = "data/raw_data/day_ahead_2015.csv"
+    day_ahead_output = "data/day_ahead_2015.csv"
+    year = 2015  # Set the desired year for the day-ahead prices
     process_day_ahead(day_ahead_input, day_ahead_output, year)
     
     # Process load levels (all years included)
-    load_levels_input = "data/raw_data/SS_Monnickendam.csv"
-    load_levels_output = "data/new_SS_Monnickendam.csv"
-    process_load_levels(load_levels_input, load_levels_output)
+    # load_levels_input = "data/raw_data/SS_Monnickendam.csv"
+    # load_levels_output = "data/new_SS_Monnickendam.csv"
+    # process_load_levels(load_levels_input, load_levels_output)
 
-    settelement_prices_input = "data/raw_data/settlement_prices.csv"
-    settlement_prices_output = "data/new_settlement_prices.csv"
-    process_settlement_prices(settelement_prices_input, settlement_prices_output)
+    # settelement_prices_input = "data/raw_data/settlement_prices.csv"
+    # settlement_prices_output = "data/new_settlement_prices.csv"
+    # process_settlement_prices(settelement_prices_input, settlement_prices_output)
    

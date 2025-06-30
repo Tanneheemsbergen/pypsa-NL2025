@@ -3,18 +3,18 @@ import pypsa
 import yaml
 import pandas as pd
 
-def create_network(battery_specs_file, prices, charge_prices, discharge_prices, year, energy_tax):
+def create_network(battery_specs_file, prices, charge_prices, discharge_prices, year, energy_tax, battery_overrides: dict | None = None):
     if not os.path.exists(battery_specs_file):
         raise FileNotFoundError(f"Battery specs file not found at: {battery_specs_file}")
 
     with open(battery_specs_file, "r") as file:
         battery_specs = yaml.safe_load(file)
-
+    
     network = pypsa.Network()
 
     network.add("Carrier", "electricity")
 
-    network.add("Bus", "MRS", carrier="electricity")
+    network.add("Bus", "MSR", carrier="electricity")
     network.add("Bus", "Electricity_Grid", carrier="electricity")
     network.add("Bus", "DAM", carrier="electricity")
     network.add("Bus", "Imbalance", carrier="electricity")
@@ -65,14 +65,14 @@ def create_network(battery_specs_file, prices, charge_prices, discharge_prices, 
                 p_nom=50000,
                 p_max_pu=0)
 
-    network.add("Link", "Grid → MRS", bus0="Electricity_Grid", bus1="MRS", p_nom=50000, carrier="Grid → MRS")
-    network.add("Link", "MRS → Grid", bus0="MRS", bus1="Electricity_Grid", p_nom=50000, carrier="MRS → Grid")
+    network.add("Link", "Grid → MSR", bus0="Electricity_Grid", bus1="MSR", p_nom=50000, carrier="Grid → MSR")
+    network.add("Link", "MSR → Grid", bus0="MSR", bus1="Electricity_Grid", p_nom=50000, carrier="MSR → Grid")
     network.add("Link", "Grid → DAM", bus0="Electricity_Grid", bus1="DAM", p_nom=50000, carrier="Grid → DAM")
     network.add("Link", "DAM → Grid", bus0="DAM", bus1="Electricity_Grid", p_nom=50000, carrier="DAM → Grid")
     network.add("Link", "Imbalance → Grid", bus0="Imbalance", bus1="Electricity_Grid", p_nom=50000, carrier="Imbalance → Grid")
     network.add("Link", "Grid → Imbalance", bus0="Electricity_Grid", bus1="Imbalance", p_nom=50000, carrier="Grid → Imbalance")
-    network.add("Link", "MRS → Household", bus0="MRS", bus1="Household", p_nom=50000, marginal_cost= energy_tax, carrier="MRS → Household")
-    network.add("Link", "Household → MRS", bus0="Household", bus1="MRS", p_nom=50000, marginal_cost= -energy_tax, carrier="Household → MRS")
+    network.add("Link", "MSR → Household", bus0="MSR", bus1="Household", p_nom=50000, marginal_cost= energy_tax, carrier="MSR → Household")
+    network.add("Link", "Household → MSR", bus0="Household", bus1="MSR", p_nom=50000, marginal_cost= -energy_tax, carrier="Household → MSR")
     network.add("Link", "PV → Household", bus0="PV", bus1="Household", p_nom=50000, carrier="PV → Household")
 
     network.add("Link", "Household → BESS",
