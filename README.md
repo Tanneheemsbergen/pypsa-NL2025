@@ -10,8 +10,6 @@ An enhanced PyPSA framework tailored to evaluate the optimal deployment of resid
 Such analysis is vital for understanding how strategic storage placement can enhance grid stability, integrate renewables, and inform long‑term energy planning.
 
 ## Table of Contents
-
-## Table of Contents
 - [Project Description](#project-description)
 - [Disclaimer & Limitations](#disclaimer-limitations)
 - [Features](#features)
