@@ -67,7 +67,7 @@ By using this software, you acknowledge these limitations and agree to validate 
    ```
 
 2. **Set up the environment**  
-   It is recommended to use `conda`:
+   It is recommended to use 'mamba' or `conda`:
    ```bash
    conda env create -f environment.yaml
    conda activate pypsa-nl2025
