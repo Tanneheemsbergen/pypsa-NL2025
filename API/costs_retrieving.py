@@ -2,7 +2,7 @@ from entsoe import EntsoePandasClient
 import pandas as pd
 
 # Initialize ENTSO-E client
-client = EntsoePandasClient(api_key="539dfdf2-c0f1-47d8-97eb-24b9472cc70f")
+client = EntsoePandasClient(api_key="***")
 # Define time range (2024 only)
 start = pd.Timestamp('2015-01-01 01:00', tz='Europe/Amsterdam')
 end = pd.Timestamp('2016-01-01 00:00', tz='Europe/Amsterdam')  # Full 2024 data
