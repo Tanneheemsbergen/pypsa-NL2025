@@ -38,6 +38,9 @@ PyPSA NL2025 is a Python-based framework built on top of [PyPSA](https://pypsa.o
   See the official limitations discussion for details:  
   https://pypsa-eur.readthedocs.io/en/latest/limitations.html
 
+- **Data**  
+  All data is provided except from the substation data. These loadlevels (per 15 min) should be retrieved from the distribution system operator. 
+
 - **PyPSA Documentation:**  
   *Full user guide, tutorials, and API reference.*  
   https://pypsa-eur.readthedocs.io/en/latest/
