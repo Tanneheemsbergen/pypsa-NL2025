@@ -21,7 +21,7 @@ Such analysis is vital for understanding how strategic storage placement can enh
 - [Contributing](#contributing)
 - [License](#license)
 - [Contact](#contact)
-
+- 
 ## Project Description
 
 PyPSA NL2025 is a Python-based framework built on top of [PyPSA](https://pypsa.org/) for modeling and optimizing the electricity distribution network in Monnickendam, Netherlands. It supports multiple market scenarios (day‑ahead, imbalance‑only, value stacking) and offers both annual and weekly rolling‑horizon simulations with detailed analysis of congestion and battery economics.
@@ -133,7 +133,7 @@ python solve2_week.py
 
 ## API Reference
 
-> *The `API/` folder is reserved for future development of RESTful endpoints.*
+> *The `API/` folder can be used to retrieve weatherdata from Copernicus and market price data from ENTSO-E.*
 
 ## Contributing
 
