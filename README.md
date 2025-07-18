@@ -1,4 +1,7 @@
-[![Python ≥3.8](https://img.shields.io/badge/python-%3E%3D3.8-blue)] [![License: MIT](https://img.shields.io/badge/license-MIT-green)]
+[![Python ≥3.8](https://img.shields.io/badge/python-%3E%3D3.8-blue)] [![License: MIT](https://img.shields.io/badge/license-MIT-green)] [![Documentation](https://readthedocs.org/projects/pypsa-eur/badge/?version=latest)](https://pypsa-eur.readthedocs.io/en/latest/)  
+[![Repo size](https://img.shields.io/github/repo-size/Tanneheemsbergen/pypsa-NL2025)](https://github.com/Tanneheemsbergen/pypsa-NL2025)  
+[![Chat on Discord](https://img.shields.io/discord/911692131440148490?label=Chat%20on%20Discord)](https://discord.com/channels/911692131440148490/911728377193451550)
+
 # PyPSA NL2025: Dutch R-BESS Energy System Modeling for 2025
 An enhanced PyPSA framework tailored to evaluate the optimal deployment of residential battery energy storage systems (R-BESS) in the distribution network for the year 2025. This repository provides tools to:
 
@@ -21,7 +24,7 @@ Such analysis is vital for understanding how strategic storage placement can enh
 - [Contributing](#contributing)
 - [License](#license)
 - [Contact](#contact)
-- 
+
 ## Project Description
 
 PyPSA NL2025 is a Python-based framework built on top of [PyPSA](https://pypsa.org/) for modeling and optimizing the electricity distribution network in Monnickendam, Netherlands. It supports multiple market scenarios (day‑ahead, imbalance‑only, value stacking) and offers both annual and weekly rolling‑horizon simulations with detailed analysis of congestion and battery economics.
